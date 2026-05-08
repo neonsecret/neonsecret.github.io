@@ -106,27 +106,31 @@ body.light #chart { background: transparent; }
 </div>
 
 <script>
+// Array order controls visual band order with stackOrderNone.
+// java + creative fade out → outer left edge.
+// cpp/linux/web/backend = persistent middle.
+// python → agents → genai → cuda clustered together on the right.
 const DOMAINS = [
-  {key:'cpp',    name:'C++ & Algorithms',              color:'#9B5DE5',
-   pts:[[2015,2],[2016,2.5],[2017,4],[2018,5],[2019,7],[2020,7],[2021,7],[2022,7],[2023,4],[2024,4],[2025,4],[2026.4,4]]},
-  {key:'creative',name:'Design · Video · 3D',          color:'#F15BB5',
-   pts:[[2015,0],[2016,1],[2017,3],[2018,4.5],[2019,5.5],[2020,5],[2021,6],[2022,6],[2023,4],[2024,3],[2025,0],[2026.4,0]]},
-  {key:'web',    name:'Web & Frontend',                color:'#00BBF9',
-   pts:[[2015,0],[2016,0],[2017,3],[2018,4],[2019,4],[2020,3],[2021,3],[2022,4],[2023,5],[2024,6],[2025,7],[2026.4,7]]},
   {key:'java',   name:'Java',                          color:'#E05C5C',
    pts:[[2015,0],[2016,0],[2017,4],[2018,6],[2019,6],[2020,5],[2021,3],[2022,1],[2023,0],[2024,0],[2025,0],[2026.4,0]]},
+  {key:'creative',name:'Design · Video · 3D',          color:'#F15BB5',
+   pts:[[2015,0],[2016,1],[2017,3],[2018,4.5],[2019,5.5],[2020,5],[2021,6],[2022,6],[2023,4],[2024,3],[2025,0],[2026.4,0]]},
+  {key:'cpp',    name:'C++ & Algorithms',              color:'#9B5DE5',
+   pts:[[2015,2],[2016,2.5],[2017,4],[2018,5],[2019,7],[2020,7],[2021,7],[2022,7],[2023,4],[2024,4],[2025,4],[2026.4,4]]},
   {key:'linux',  name:'Linux · Security · Systems',    color:'#00F5D4',
    pts:[[2015,0],[2016,0],[2017,0],[2018,1],[2019,4.5],[2020,3],[2021,4],[2022,6],[2023,7],[2024,8],[2025,9],[2026.4,10]]},
+  {key:'web',    name:'Web & Frontend',                color:'#00BBF9',
+   pts:[[2015,0],[2016,0],[2017,3],[2018,4],[2019,4],[2020,3],[2021,3],[2022,4],[2023,5],[2024,6],[2025,7],[2026.4,7]]},
+  {key:'backend',name:'Backend & Cloud',               color:'#F77F00',
+   pts:[[2015,0],[2016,0],[2017,0],[2018,0],[2019,0],[2020,0],[2021,1],[2022,5],[2023,7],[2024,7],[2025,8],[2026.4,9]]},
   {key:'python', name:'Python & ML',                   color:'#FEE440',
    pts:[[2015,0],[2016,0],[2017,0.5],[2018,1],[2019,1.5],[2020,4],[2021,7],[2022,8],[2023,8],[2024,8],[2025,8],[2026.4,9]]},
+  {key:'agents', name:'LLM Agents & RAG',              color:'#06D6A0',
+   pts:[[2015,0],[2016,0],[2017,0],[2018,0],[2019,0],[2020,0],[2021,0],[2022,0],[2023,1],[2024,6],[2025,13],[2026.4,15]]},
   {key:'genai',  name:'Generative AI & Voice',         color:'#FF6B6B',
    pts:[[2015,0],[2016,0],[2017,0],[2018,0],[2019,0],[2020,0],[2021,0],[2022,8],[2023,9],[2024,7],[2025,5],[2026.4,4]]},
   {key:'cuda',   name:'Inference & CUDA Optimization', color:'#4CC9F0',
    pts:[[2015,0],[2016,0],[2017,0],[2018,0],[2019,0],[2020,0],[2021,1],[2022,5],[2023,8],[2024,8],[2025,9],[2026.4,10]]},
-  {key:'backend',name:'Backend & Cloud',               color:'#F77F00',
-   pts:[[2015,0],[2016,0],[2017,0],[2018,0],[2019,0],[2020,0],[2021,1],[2022,5],[2023,7],[2024,7],[2025,8],[2026.4,9]]},
-  {key:'agents', name:'LLM Agents & RAG',              color:'#06D6A0',
-   pts:[[2015,0],[2016,0],[2017,0],[2018,0],[2019,0],[2020,0],[2021,0],[2022,0],[2023,1],[2024,6],[2025,13],[2026.4,15]]},
 ];
 
 const MILESTONES = [
@@ -202,7 +206,7 @@ const stackData=months.map(m=>{
 const stack=d3.stack()
   .keys(DOMAINS.map(d=>d.key))
   .offset(d3.stackOffsetWiggle)
-  .order(d3.stackOrderInsideOut);
+  .order(d3.stackOrderNone);
 
 const layers=stack(stackData);
 const yExt=[
