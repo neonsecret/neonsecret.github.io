@@ -43,9 +43,35 @@ canvas{display:block}
 .footer{margin-top:44px;font-size:13px;color:#404258}
 .footer a{color:#5a5c78;text-decoration:none;border-bottom:1px dotted #404258}
 .footer a:hover{color:#9b9db8}
+
+body.light {
+  background: #f4f5ff !important;
+  background-image: radial-gradient(ellipse 160% 50% at 50% -5%, #e8eaff 0%, #f4f5ff 55%) !important;
+  color: #1a1a2e !important;
+}
+body.light .back { color:#4a4c6a !important; border-color:rgba(0,0,0,0.1) !important; }
+body.light .back:hover { color:#1a1a2e !important; }
+body.light .subtitle, body.light .tt-meta { color:#4a4c6a !important; }
+body.light .tooltip {
+  background:rgba(244,245,255,0.97) !important;
+  border-color:rgba(0,0,0,0.1) !important;
+  color:#1a1a2e !important;
+}
+body.light .footer { color:#8a8ca8 !important; }
+body.light .footer a { color:#6b6d86 !important; border-color:#b0b2cc !important; }
+body.light #themeToggle { color:#4a4c6a !important; border-color:rgba(0,0,0,0.15) !important; background:rgba(0,0,0,0.04) !important; }
 </style>
 </head>
 <body>
+<button id="themeToggle" title="Toggle theme" style="
+  position:fixed;top:18px;right:18px;z-index:1000;
+  width:36px;height:36px;border-radius:50%;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.06);
+  color:#9b9db8;font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(12px);transition:all 0.2s;
+">☀</button>
 <a class="back" href="index.html">← overview</a>
 <h1>gradient field</h1>
 <p class="subtitle">
@@ -81,17 +107,17 @@ canvas{display:block}
 <script>
 // ── domain axis (left = systems, right = frontier AI) ──────────────────────
 const DOMAINS = [
-  {key:'linux',    name:'Systems & Security',  color:'#00F5D4'},
-  {key:'foundations',name:'Prog. Foundations', color:'#9B5DE5'},
-  {key:'creative', name:'Design & Creative',   color:'#F15BB5'},
-  {key:'web',      name:'Web & Frontend',      color:'#00BBF9'},
-  {key:'backend',  name:'Backend & Cloud',     color:'#F77F00'},
-  {key:'voice',    name:'Voice & Speech',      color:'#BD93F9'},
-  {key:'aiml',     name:'AI / ML Core',        color:'#FEE440'},
-  {key:'genai',    name:'Generative AI',       color:'#FF6B6B'},
-  {key:'cuda',     name:'Inference & CUDA',    color:'#4CC9F0'},
-  {key:'agents',   name:'LLM Agents & RAG',   color:'#06D6A0'},
-  {key:'native',   name:'Native & Systems',    color:'#C084FC'},
+  {key:'foundations',name:'Prog. Foundations', color:'#9B5DE5'},  // pure CS, algorithms
+  {key:'native',   name:'Native & Systems',    color:'#C084FC'},  // Rust, Swift, Arduino
+  {key:'linux',    name:'Systems & Security',  color:'#00F5D4'},  // OS, containers, hacking
+  {key:'web',      name:'Web & Frontend',      color:'#00BBF9'},  // HTML → React → TS
+  {key:'backend',  name:'Backend & Cloud',     color:'#F77F00'},  // FastAPI, AWS, infra
+  {key:'creative', name:'Design & Creative',   color:'#F15BB5'},  // Photoshop, Blender, video
+  {key:'voice',    name:'Voice & Speech',      color:'#BD93F9'},  // TTS, Whisper, audio
+  {key:'aiml',     name:'AI / ML Core',        color:'#FEE440'},  // PyTorch, training
+  {key:'cuda',     name:'Inference & CUDA',    color:'#4CC9F0'},  // CUDA, vLLM, optimization
+  {key:'genai',    name:'Generative AI',       color:'#FF6B6B'},  // SD, diffusion, LoRA
+  {key:'agents',   name:'LLM Agents & RAG',   color:'#06D6A0'},  // LangGraph, MCP, frontier
 ];
 
 const SKILLS = [
@@ -264,43 +290,52 @@ const gWeights = DOMAINS.map((_, di) => {
 const img  = ctx.createImageData(TOTAL_W, TOTAL_H);
 const data = img.data;
 
-// Fill background
-for (let i = 0; i < data.length; i += 4) {
-  data[i]=6; data[i+1]=7; data[i+2]=15; data[i+3]=255;
-}
+const SCALE = 0.92;   // max single-domain brightness at peak
 
-const SCALE = 0.72;   // max single-domain brightness at peak
+function renderGradient(light) {
+  const BG = light ? [244,245,255] : [6,7,15];
+  const sat = light ? 0.9 : 1.0;
 
-for (let row = 0; row < DATA_H; row++) {
-  const yr  = Y_END - (row / DATA_H) * Y_RANGE;
-  const py  = TOP + row;
-
-  // Intensities for all domains at this time point
-  const ints = new Float32Array(DOMAINS.length);
-  for (let di = 0; di < DOMAINS.length; di++) {
-    ints[di] = Math.min(1, intensity(DOMAINS[di].key, yr) / globalMax);
+  // Fill background
+  for (let i = 0; i < data.length; i += 4) {
+    data[i]=BG[0]; data[i+1]=BG[1]; data[i+2]=BG[2]; data[i+3]=255;
   }
 
-  for (let px = 0; px < TOTAL_W; px++) {
-    // Screen compositing: C_out = 1 - ∏(1 - w_i × C_i)
-    let R = 0, G = 0, B = 0;
+  for (let row = 0; row < DATA_H; row++) {
+    const yr  = Y_END - (row / DATA_H) * Y_RANGE;
+    const py  = TOP + row;
+
+    // Intensities for all domains at this time point
+    const ints = new Float32Array(DOMAINS.length);
     for (let di = 0; di < DOMAINS.length; di++) {
-      const w = gWeights[di][px] * ints[di] * SCALE;
-      if (w < 0.003) continue;
-      const [r, g, b] = domRGB[di];
-      R = R + r * w * (1 - R);
-      G = G + g * w * (1 - G);
-      B = B + b * w * (1 - B);
+      ints[di] = Math.min(1, intensity(DOMAINS[di].key, yr) / globalMax);
     }
-    const idx = (py * TOTAL_W + px) * 4;
-    data[idx]   = R * 255;
-    data[idx+1] = G * 255;
-    data[idx+2] = B * 255;
-    // alpha stays 255
+
+    for (let px = 0; px < TOTAL_W; px++) {
+      // Screen compositing: C_out = 1 - ∏(1 - w_i × C_i)
+      let R = 0, G = 0, B = 0;
+      for (let di = 0; di < DOMAINS.length; di++) {
+        const w = gWeights[di][px] * ints[di] * SCALE;
+        if (w < 0.003) continue;
+        const [r, g, b] = domRGB[di];
+        R = R + r * w * (1 - R);
+        G = G + g * w * (1 - G);
+        B = B + b * w * (1 - B);
+      }
+      const idx = (py * TOTAL_W + px) * 4;
+      data[idx]   = Math.max(1, R * 255 * sat);
+      data[idx+1] = Math.max(1, G * 255 * sat);
+      data[idx+2] = Math.max(1, B * 255 * sat);
+      // alpha stays 255
+    }
   }
+
+  ctx.putImageData(img, 0, 0);
 }
 
-ctx.putImageData(img, 0, 0);
+renderGradient(document.body.classList.contains('light'));
+
+function onThemeChange(isLight){ renderGradient(isLight); }
 
 // No CSS blur — domain blending is entirely from Gaussian spatial overlap
 
@@ -356,9 +391,10 @@ for (let yr = 2015; yr <= 2026; yr++) {
   });
   // year label
   const lbl = svgEl_('text', {
-    x: LEFT - 8, y: py + 4, fill: '#4a4c6a',
+    x: LEFT - 8, y: py + 4, fill: '#a0a2bc',
     'font-size': '12', 'font-family': 'Space Grotesk, system-ui',
-    'text-anchor': 'end'
+    'text-anchor': 'end',
+    'paint-order': 'stroke', stroke: '#06070f', 'stroke-width': '3', 'stroke-linejoin': 'round'
   });
   lbl.textContent = yr;
 }
@@ -389,9 +425,10 @@ MILESTONES.forEach((m, i) => {
   const lx   = side ? TOTAL_W - RIGHT - 4 : LEFT + 4;
   const anchor = side ? 'end' : 'start';
   const lbl = svgEl_('text', {
-    x: lx, y: py - 3, fill: '#5a5c78',
+    x: lx, y: py - 3, fill: '#c8cadf',
     'font-size': '10.5', 'font-family': 'Space Grotesk, system-ui',
-    'text-anchor': anchor
+    'text-anchor': anchor,
+    'paint-order': 'stroke', stroke: '#06070f', 'stroke-width': '4', 'stroke-linejoin': 'round'
   });
   lbl.textContent = m.label;
 });
@@ -500,6 +537,21 @@ legendEl.innerHTML = DOMAINS.map(d =>
      <span style="color:${d.color};opacity:0.7">${d.name}</span>
    </div>`
 ).join('');
+</script>
+<script>
+(function(){
+  const btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  let stored = null;
+  try { stored = localStorage.getItem('theme'); } catch(e) {}
+  if(stored === 'light'){ document.body.classList.add('light'); btn.textContent='🌙'; if(typeof onThemeChange === 'function') onThemeChange(true); }
+  btn.addEventListener('click', ()=>{
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '🌙' : '☀';
+    try { localStorage.setItem('theme', isLight ? 'light' : 'dark'); } catch(e) {}
+    if(typeof onThemeChange === 'function') onThemeChange(isLight);
+  });
+})();
 </script>
 </body>
 </html>

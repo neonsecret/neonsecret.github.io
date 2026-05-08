@@ -94,9 +94,35 @@ h1{
 .footer{margin-top:48px;font-size:12px;color:#3e405a;text-align:center;line-height:1.8}
 .footer a{color:#5a5c78;text-decoration:none;border-bottom:1px dotted #3e405a}
 .footer a:hover{color:#9b9db8}
+
+body.light {
+  background: #f4f5ff !important;
+  background-image: radial-gradient(ellipse 160% 50% at 50% -5%, #e8eaff 0%, #f4f5ff 55%) !important;
+  color: #1a1a2e !important;
+}
+body.light .back { color:#4a4c6a !important; border-color:rgba(0,0,0,0.1) !important; }
+body.light .back:hover { color:#1a1a2e !important; }
+body.light .subtitle, body.light .tt-meta { color:#4a4c6a !important; }
+body.light .tooltip {
+  background:rgba(244,245,255,0.97) !important;
+  border-color:rgba(0,0,0,0.1) !important;
+  color:#1a1a2e !important;
+}
+body.light .footer { color:#8a8ca8 !important; }
+body.light .footer a { color:#6b6d86 !important; border-color:#b0b2cc !important; }
+body.light #themeToggle { color:#4a4c6a !important; border-color:rgba(0,0,0,0.15) !important; background:rgba(0,0,0,0.04) !important; }
 </style>
 </head>
 <body>
+<button id="themeToggle" title="Toggle theme" style="
+  position:fixed;top:18px;right:18px;z-index:1000;
+  width:36px;height:36px;border-radius:50%;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.06);
+  color:#9b9db8;font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(12px);transition:all 0.2s;
+">☀</button>
 
 <a class="back" href="index.html">← back</a>
 
@@ -141,17 +167,17 @@ const DOMAIN_LABEL = {
 
 const SKILLS = [
   ['C++','foundations',2015,2026.4,8],
-  ['Java','foundations',2017,2021,6],
+  ['Java','foundations',2017,2021,6,0],
   ['Python','foundations',2020,2026.4,10],
   ['Algorithms & DSA','foundations',2017,2026.4,8],
-  ['Node graph / visual prog','foundations',2016,2022,6],
-  ['CNN / early ML','foundations',2017,2020,4],
-  ['Competitive programming','foundations',2019,2022,7],
-  ['Photoshop / GIMP','creative',2017,2022,7],
-  ['After Effects / Video','creative',2018,2022.5,7],
-  ['Blender & 3D','creative',2019,2022.5,8],
-  ['Cinema 4D','creative',2019,2022,5],
-  ['Drone + DaVinci','creative',2023,2024.5,6],
+  ['Node graph / visual prog','foundations',2016,2022,6,0.15],
+  ['CNN / early ML','foundations',2017,2020,4,0.2],
+  ['Competitive programming','foundations',2019,2022,7,0.25],
+  ['Photoshop / GIMP','creative',2017,2022,7,0.25],
+  ['After Effects / Video','creative',2018,2022.5,7,0.1],
+  ['Blender & 3D','creative',2019,2022.5,8,0.15],
+  ['Cinema 4D','creative',2019,2022,5,0.05],
+  ['Drone + DaVinci','creative',2023,2024.5,6,0.1],
   ['HTML / CSS','web',2017,2026.4,7],
   ['JavaScript','web',2017,2026.4,8],
   ['React','web',2022,2026.4,7],
@@ -161,15 +187,15 @@ const SKILLS = [
   ['Docker','linux',2022,2026.4,9],
   ['Kubernetes/ArgoCD','linux',2025,2026.4,7],
   ['PyTorch','aiml',2021,2026.4,10],
-  ['TensorFlow','aiml',2021,2023,7],
+  ['TensorFlow','aiml',2021,2023,7,0.1],
   ['NumPy / Pandas','aiml',2021,2026.4,9],
   ['YOLO / object det','aiml',2022,2026.4,7],
   ['Hybrid AR+diffusion','aiml',2025.85,2026.4,8],
-  ['Stable Diffusion ★593','genai',2022.6,2025,10],
+  ['Stable Diffusion ★593','genai',2022.6,2025,10,0.3],
   ['Diffusion models','genai',2022,2026.4,9],
   ['LoRA / Dreambooth','genai',2022.8,2026.4,9],
-  ['FLUX.1','genai',2024,2025,8],
-  ['Tacotron 2 / TTS ★55','voice',2022,2023.5,8],
+  ['FLUX.1','genai',2024,2025,8,0.25],
+  ['Tacotron 2 / TTS ★55','voice',2022,2023.5,8,0.15],
   ['OpenAI Whisper','voice',2024,2026.4,7],
   ['CUDA','cuda',2022,2026.4,8],
   ['FlashAttention','cuda',2022,2026.4,9],
@@ -186,7 +212,7 @@ const SKILLS = [
   ['GraphRAG','agents',2026,2026.4,8],
   ['Swift / macOS','native',2023,2026.4,6],
   ['Rust','native',2026,2026.4,4],
-].map(([name,domain,start,end,depth])=>({name,domain,start,end,depth}));
+].map(([name,domain,start,end,depth,decay=0])=>({name,domain,start,end,depth,decay}));
 
 const MILESTONES = {
   2017:'school', 2019:'Kali', 2022:'SD★', 2025:'Rohlik', 2026:'NeurIPS'
@@ -309,17 +335,23 @@ rows.forEach((row, i)=>{
   // cells
   const startFloor = Math.floor(s.start);
   const endFloor   = Math.floor(s.end);
+  const decayFloor = s.decay * s.depth;
+  const HALF_LIFE  = 1.8;
   YEARS.forEach((Y, idx)=>{
     let opacity = 0;
     if(Y >= startFloor && Y <= endFloor){
       if(Y === startFloor && s.start > Y){
-        // partial start year
         opacity = (s.depth/10) * 0.6;
       } else if(Y === endFloor && s.end < Y+1){
         opacity = (s.depth/10) * 0.5;
       } else {
         opacity = s.depth/10;
       }
+    } else if(Y > endFloor && s.decay > 0){
+      const t = Y - s.end;
+      const retained = decayFloor + (s.depth - decayFloor) * Math.exp(-t * Math.LN2 / HALF_LIFE);
+      opacity = retained / 10;
+      if(opacity < 0.04) opacity = 0;
     }
     const cx = xOf(idx);
     const visible = opacity > 0;
@@ -360,6 +392,21 @@ domainOrder.forEach(d=>{
   item.appendChild(lbl);
   legendEl.appendChild(item);
 });
+</script>
+<script>
+(function(){
+  const btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  let stored = null;
+  try { stored = localStorage.getItem('theme'); } catch(e) {}
+  if(stored === 'light'){ document.body.classList.add('light'); btn.textContent='🌙'; }
+  btn.addEventListener('click', ()=>{
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '🌙' : '☀';
+    try { localStorage.setItem('theme', isLight ? 'light' : 'dark'); } catch(e) {}
+    if(typeof onThemeChange === 'function') onThemeChange(isLight);
+  });
+})();
 </script>
 </body>
 </html>

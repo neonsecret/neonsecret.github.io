@@ -59,9 +59,35 @@ svg{display:block}
 .footer{margin-top:56px;font-size:13px;color:#404258}
 .footer a{color:#5a5c78;text-decoration:none;border-bottom:1px dotted #404258}
 .footer a:hover{color:#9b9db8}
+
+body.light {
+  background: #f4f5ff !important;
+  background-image: radial-gradient(ellipse 160% 50% at 50% -5%, #e8eaff 0%, #f4f5ff 55%) !important;
+  color: #1a1a2e !important;
+}
+body.light .back { color:#4a4c6a !important; border-color:rgba(0,0,0,0.1) !important; }
+body.light .back:hover { color:#1a1a2e !important; }
+body.light .subtitle, body.light .tt-meta { color:#4a4c6a !important; }
+body.light .tooltip {
+  background:rgba(244,245,255,0.97) !important;
+  border-color:rgba(0,0,0,0.1) !important;
+  color:#1a1a2e !important;
+}
+body.light .footer { color:#8a8ca8 !important; }
+body.light .footer a { color:#6b6d86 !important; border-color:#b0b2cc !important; }
+body.light #themeToggle { color:#4a4c6a !important; border-color:rgba(0,0,0,0.15) !important; background:rgba(0,0,0,0.04) !important; }
 </style>
 </head>
 <body>
+<button id="themeToggle" title="Toggle theme" style="
+  position:fixed;top:18px;right:18px;z-index:1000;
+  width:36px;height:36px;border-radius:50%;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.06);
+  color:#9b9db8;font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(12px);transition:all 0.2s;
+">☀</button>
 <div class="page-header">
   <a class="back" href="index.html">← overview</a>
   <h1>skill timeline</h1>
@@ -480,6 +506,21 @@ MILESTONES.forEach((m, i)=>{
     .attr('y', TOP_PAD + 14 + (i % 2) * 13)
     .text(m.label);
 });
+</script>
+<script>
+(function(){
+  const btn = document.getElementById('themeToggle');
+  if(!btn) return;
+  let stored = null;
+  try { stored = localStorage.getItem('theme'); } catch(e) {}
+  if(stored === 'light'){ document.body.classList.add('light'); btn.textContent='🌙'; }
+  btn.addEventListener('click', ()=>{
+    const isLight = document.body.classList.toggle('light');
+    btn.textContent = isLight ? '🌙' : '☀';
+    try { localStorage.setItem('theme', isLight ? 'light' : 'dark'); } catch(e) {}
+    if(typeof onThemeChange === 'function') onThemeChange(isLight);
+  });
+})();
 </script>
 </body>
 </html>
