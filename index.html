@@ -122,6 +122,22 @@ body.light .tooltip {
 body.light .footer { color:#8a8ca8 !important; }
 body.light .footer a { color:#6b6d86 !important; border-color:#b0b2cc !important; }
 body.light #themeToggle { color:#4a4c6a !important; border-color:rgba(0,0,0,0.15) !important; background:rgba(0,0,0,0.04) !important; }
+
+/* ── mobile ── */
+@media (max-width: 768px) {
+  body { padding: 28px 16px 60px; }
+  h1 { font-size: clamp(28px, 8vw, 42px) !important; }
+  .subtitle, .hero-sub { font-size: 14px !important; }
+  .back { font-size: 12px; padding: 5px 12px; }
+  #themeToggle { top: 12px; right: 12px; width: 32px; height: 32px; font-size: 14px; }
+  .cards { grid-template-columns: 1fr !important; }
+  .hero { margin-bottom: 40px; }
+  .hero-meta { flex-direction: column; gap: 8px; align-items: center; }
+  .card { padding: 24px 20px; }
+  .card-preview { display: none; } /* hide code previews on mobile to save space */
+  .tags { gap: 6px; }
+  .tag { font-size: 11px; padding: 4px 10px; }
+}
 </style>
 </head>
 <body>

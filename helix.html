@@ -109,6 +109,53 @@
   body.light #footer { color: #8a8ca8 !important; }
   body.light #footer a { color: #6b6d86 !important; border-color: #b0b2cc !important; }
   body.light #themeToggle { color: #4a4c6a !important; border-color: rgba(0,0,0,0.15) !important; background: rgba(0,0,0,0.04) !important; }
+
+  #skillLabels {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 6;
+  }
+
+  #legend {
+    position: fixed; bottom: 50px; left: 18px;
+    background: rgba(10,12,26,0.55);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 10px 14px;
+    backdrop-filter: blur(10px);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    color: #c8cae0;
+    z-index: 7;
+    pointer-events: none;
+    line-height: 1.55;
+  }
+  #legend .row { display: flex; align-items: center; gap: 8px; }
+  #legend .swatch {
+    width: 10px; height: 10px; border-radius: 2px;
+    box-shadow: 0 0 8px currentColor;
+    flex-shrink: 0;
+  }
+  body.light #legend {
+    background: rgba(255,255,255,0.65) !important;
+    border-color: rgba(0,0,0,0.08) !important;
+    color: #1a1a2e !important;
+  }
+
+  /* ── mobile ── */
+  @media (max-width: 768px) {
+    body { padding: 28px 16px 60px; }
+    h1 { font-size: clamp(28px, 8vw, 42px) !important; }
+    .subtitle, .hero-sub { font-size: 14px !important; }
+    .back { font-size: 12px; padding: 5px 12px; }
+    #themeToggle { top: 12px; right: 12px; width: 32px; height: 32px; font-size: 14px; }
+    #ui .header { padding: 16px 20px; }
+    #ui h1 { font-size: 28px !important; }
+    #legend { bottom: 16px; left: 16px; padding: 12px 16px; }
+    #legend .dom { font-size: 11px; margin: 3px 0; }
+    #info { display: none; } /* hide controls info on mobile */
+  }
 </style>
 </head>
 <body>
@@ -121,6 +168,10 @@
     <p class="sub">drag to orbit · scroll to zoom · terrain height = activity intensity</p>
   </div>
 </div>
+
+<div id="skillLabels"></div>
+
+<div id="legend"></div>
 
 <div id="footer">
   <a href="gradient.html">gradient</a> ·
@@ -270,7 +321,7 @@ scene.add(frontLight);
 const NX = 110, NZ = 80;
 const X_SPAN = 10;        // domain spectrum
 const Z_SPAN = 11.5;      // years 2015 → 2026.5
-const Y_MAX  = 4;
+const Y_MAX  = 5;
 
 const positions = new Float32Array(NX * NZ * 3);
 const colors    = new Float32Array(NX * NZ * 3);
@@ -313,7 +364,7 @@ for (let iz = 0; iz < NZ; iz++) {
     const x = ix / (NX - 1) * X_SPAN;
     const idx = iz * NX + ix;
     const hNorm = heights[idx] / (maxH || 1);
-    const y = Math.pow(hNorm, 0.85) * Y_MAX;
+    const y = Math.pow(hNorm, 0.75) * Y_MAX;
     positions[idx * 3]     = x;
     positions[idx * 3 + 1] = y;
     positions[idx * 3 + 2] = z;
@@ -415,6 +466,16 @@ addAxisLine(0, Z_SPAN, X_SPAN, Z_SPAN, 0x9B5DE5, 0.18); // back edge (2015)
 addAxisLine(0, 0, 0, Z_SPAN, 0x9B5DE5, 0.18);
 addAxisLine(X_SPAN, 0, X_SPAN, Z_SPAN, 0x06D6A0, 0.18);
 
+// ── year ring lines on ground ──────────────────────────────────────────────
+const RING_YEARS = [2016, 2018, 2020, 2022, 2024];
+RING_YEARS.forEach(yr => {
+  const z = ((2026.5 - yr) / Z_SPAN) * Z_SPAN;
+  const pts = [new THREE.Vector3(0, 0.01, z), new THREE.Vector3(X_SPAN, 0.01, z)];
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({ color: 0x333355, transparent: true, opacity: 0.6 });
+  scene.add(new THREE.Line(geo, mat));
+});
+
 // ── HTML axis label overlays (projected each frame) ────────────────────────
 const labels = [];
 function makeLabel(text, cls) {
@@ -454,6 +515,121 @@ function updateLabels() {
   }
 }
 
+// ── projected HTML labels (skill peaks, years, domains) ────────────────────
+let skillLabelsContainer = document.getElementById('skillLabels');
+if (!skillLabelsContainer) {
+  skillLabelsContainer = document.createElement('div');
+  skillLabelsContainer.id = 'skillLabels';
+  document.body.appendChild(skillLabelsContainer);
+}
+const projectedLabels = [];
+
+function makeProjectedLabel(text, color, fontSize, opacity) {
+  const el = document.createElement('span');
+  el.textContent = text;
+  el.style.cssText =
+    `position:absolute; font-size:${fontSize}px; color:${color}; opacity:${opacity};` +
+    ` white-space:nowrap; text-shadow: 0 0 8px #06070f, 0 0 4px #06070f;` +
+    ` pointer-events:none; font-family:'Space Grotesk',sans-serif;` +
+    ` transform: translate(-50%,-50%);`;
+  skillLabelsContainer.appendChild(el);
+  return el;
+}
+
+// helper: sample terrain world-Y for arbitrary (worldX, worldZ)
+function sampleTerrainY(worldX, worldZ) {
+  const ix = Math.max(0, Math.min(NX - 1, Math.round(worldX / X_SPAN * (NX - 1))));
+  const iz = Math.max(0, Math.min(NZ - 1, Math.round(worldZ / Z_SPAN * (NZ - 1))));
+  return positions[(iz * NX + ix) * 3 + 1];
+}
+
+// skill peak labels (depth >= 7 only)
+SKILLS.forEach(skill => {
+  if (skill.depth < 7) return;
+  const domIdx = DOMAIN_ORDER.indexOf(skill.domain);
+  const peakYear = (skill.start + Math.min(skill.end, 2026.4)) / 2;
+  const domainX = domIdx / (DOMAIN_ORDER.length - 1) * X_SPAN;
+  const peakZ = ((2026.5 - peakYear) / Z_SPAN) * Z_SPAN;
+  const peakY = sampleTerrainY(domainX, peakZ) + 0.25;
+  const color = DOMAIN_COLORS[skill.domain];
+  const el = makeProjectedLabel(skill.name, color, 10, 0.85);
+  projectedLabels.push({ el, pos: new THREE.Vector3(domainX, peakY, peakZ) });
+});
+
+// year labels along right edge
+const YEAR_RING_LABELS = [
+  { y: 2016, t: '2016' },
+  { y: 2018, t: '2018' },
+  { y: 2020, t: '2020' },
+  { y: 2022, t: '2022' },
+  { y: 2024, t: '2024' },
+];
+YEAR_RING_LABELS.forEach(({ y, t }) => {
+  const z = ((2026.5 - y) / Z_SPAN) * Z_SPAN;
+  const el = makeProjectedLabel(t, '#8a8ca8', 10, 0.7);
+  projectedLabels.push({ el, pos: new THREE.Vector3(X_SPAN + 0.5, 0, z) });
+});
+// "now" marker
+{
+  const el = makeProjectedLabel('2026 → now', '#06D6A0', 10, 0.9);
+  projectedLabels.push({ el, pos: new THREE.Vector3(X_SPAN + 0.5, 0, 0) });
+}
+
+// domain labels along front edge (z=0, near camera)
+const DOMAIN_SHORT = {
+  foundations: 'Foundations', native: 'Native', linux: 'Linux',
+  web: 'Web', backend: 'Backend', creative: 'Creative',
+  voice: 'Voice', aiml: 'AI/ML', cuda: 'CUDA',
+  genai: 'GenAI', agents: 'Agents'
+};
+DOMAIN_ORDER.forEach((key, i) => {
+  const x = i / (DOMAIN_ORDER.length - 1) * X_SPAN;
+  const el = makeProjectedLabel(DOMAIN_SHORT[key], DOMAIN_COLORS[key], 9, 0.85);
+  projectedLabels.push({ el, pos: new THREE.Vector3(x, 0, -0.3) });
+});
+
+function updateProjectedLabels() {
+  const w = window.innerWidth, h = window.innerHeight;
+  for (const lab of projectedLabels) {
+    tmpVec.copy(lab.pos).project(camera);
+    const inView = tmpVec.x >= -1 && tmpVec.x <= 1 && tmpVec.y >= -1 && tmpVec.y <= 1 && tmpVec.z < 1;
+    if (!inView) {
+      lab.el.style.opacity = '0';
+      continue;
+    }
+    const sx = (tmpVec.x * 0.5 + 0.5) * w;
+    const sy = (-tmpVec.y * 0.5 + 0.5) * h;
+    lab.el.style.left = sx + 'px';
+    lab.el.style.top  = sy + 'px';
+    lab.el.style.opacity = lab.el.dataset.baseOpacity || '';
+  }
+}
+
+// stash baseline opacities so we can restore after hiding
+projectedLabels.forEach(lab => {
+  lab.el.dataset.baseOpacity = lab.el.style.opacity;
+});
+
+// ── legend (11 domains) ────────────────────────────────────────────────────
+(function buildLegend() {
+  const legend = document.getElementById('legend');
+  if (!legend) return;
+  legend.innerHTML = '';
+  DOMAIN_ORDER.forEach(key => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const sw = document.createElement('span');
+    sw.className = 'swatch';
+    sw.style.background = DOMAIN_COLORS[key];
+    sw.style.color = DOMAIN_COLORS[key];
+    const lbl = document.createElement('span');
+    lbl.textContent = DOMAIN_SHORT[key];
+    row.appendChild(sw);
+    row.appendChild(lbl);
+    legend.appendChild(row);
+  });
+})();
+
 // ── animate ────────────────────────────────────────────────────────────────
 const clock = new THREE.Clock();
 function animate() {
@@ -463,6 +639,7 @@ function animate() {
   // gentle pulsing of front light
   frontLight.intensity = 18 + Math.sin(t * 0.7) * 4;
   updateLabels();
+  updateProjectedLabels();
   renderer.render(scene, camera);
 }
 animate();

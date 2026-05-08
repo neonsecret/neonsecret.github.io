@@ -73,6 +73,25 @@ body.light svg text { fill: #4a4c6a !important; }
 body.light .axis-label, body.light .tt-meta { color: #4a4c6a !important; }
 body.light .milestone-label, body.light .ms-label, body.light .now-label { fill: #6b6d86 !important; }
 body.light #chart { background: transparent; }
+
+/* ── mobile ── */
+@media (max-width: 768px) {
+  body { padding: 28px 16px 60px; }
+  h1 { font-size: clamp(28px, 8vw, 42px) !important; }
+  .subtitle, .hero-sub { font-size: 14px !important; }
+  .back { font-size: 12px; padding: 5px 12px; }
+  #themeToggle { top: 12px; right: 12px; width: 32px; height: 32px; font-size: 14px; }
+  /* allow horizontal scroll for wide charts */
+  .wrap, #chart-container, .chart-wrap, svg, canvas {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  /* make the chart container scrollable */
+  .chart-wrap, #chart-container, .wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
 </style>
 </head>
 <body>
