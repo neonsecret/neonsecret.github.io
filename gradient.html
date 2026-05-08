@@ -272,7 +272,7 @@ for (let i = 0; i < data.length; i += 4) {
 const SCALE = 0.72;   // max single-domain brightness at peak
 
 for (let row = 0; row < DATA_H; row++) {
-  const yr  = Y_START + (row / DATA_H) * Y_RANGE;
+  const yr  = Y_END - (row / DATA_H) * Y_RANGE;
   const py  = TOP + row;
 
   // Intensities for all domains at this time point
@@ -348,7 +348,7 @@ DOMAINS.forEach((d, di) => {
 
 // year axis (left)
 for (let yr = 2015; yr <= 2026; yr++) {
-  const py = TOP + ((yr - Y_START) / Y_RANGE) * DATA_H;
+  const py = TOP + ((Y_END - yr) / Y_RANGE) * DATA_H;
   // tick line across full width
   svgEl_('line', {
     x1: LEFT - 4, y1: py, x2: TOTAL_W - RIGHT, y2: py,
@@ -364,7 +364,7 @@ for (let yr = 2015; yr <= 2026; yr++) {
 }
 
 // "now" line
-const nowY = TOP + ((2026.42 - Y_START) / Y_RANGE) * DATA_H;
+const nowY = TOP + ((Y_END - 2026.42) / Y_RANGE) * DATA_H;
 svgEl_('line', {
   x1: LEFT, y1: nowY, x2: TOTAL_W - RIGHT, y2: nowY,
   stroke: 'rgba(255,255,255,0.35)', 'stroke-width': '1.5'
@@ -378,7 +378,7 @@ nowLbl.textContent = 'now';
 
 // milestones: dot on left axis + dashed line
 MILESTONES.forEach((m, i) => {
-  const py = TOP + ((m.year - Y_START) / Y_RANGE) * DATA_H;
+  const py = TOP + ((Y_END - m.year) / Y_RANGE) * DATA_H;
   svgEl_('circle', {cx: LEFT - 2, cy: py, r: '3', fill: '#6b6d86'});
   svgEl_('line', {
     x1: LEFT - 2, y1: py, x2: TOTAL_W - RIGHT, y2: py,
@@ -414,7 +414,7 @@ SKILLS.forEach(s => {
   const dotX   = cx + jitter;
   const activeEnd = Math.min(s.end, 2026.42);
   const midYr  = (s.start + activeEnd) / 2;
-  const dotY   = TOP + ((midYr - Y_START) / Y_RANGE) * DATA_H;
+  const dotY   = TOP + ((Y_END - midYr) / Y_RANGE) * DATA_H;
   const r      = 1.8 + (s.depth / 10) * 3.2;
   const active = s.end >= 2026.4;
 
@@ -472,7 +472,7 @@ wrap.addEventListener('mousemove', ev => {
       tt.style.opacity = '0'; return;
     }
     const d  = DOMAINS[di];
-    const yr = Y_START + ((my - TOP) / DATA_H) * Y_RANGE;
+    const yr = Y_END - ((my - TOP) / DATA_H) * Y_RANGE;
     const active = SKILLS
       .filter(s => s.domain === d.key && yr >= s.start - 0.3 && yr <= s.end + 0.4)
       .sort((a,b) => b.depth - a.depth).slice(0,5).map(s => s.name).join(', ');
