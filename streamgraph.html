@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>a decade in code · streamgraph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{background:#06070f}
+body{
+  background:radial-gradient(ellipse 160% 70% at 50% -10%,#1c1040 0%,#06070f 55%);
+  color:#d4d6f0;
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  padding:64px 56px 80px;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+.page-header{margin-bottom:52px}
+.back{
+  display:inline-flex;align-items:center;gap:6px;
+  color:#6b6d86;font-size:13px;text-decoration:none;
+  border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:6px 14px;
+  margin-bottom:28px;transition:color 0.15s,border-color 0.15s;
+}
+.back:hover{color:#d4d6f0;border-color:rgba(255,255,255,0.18)}
+h1{
+  font-size:52px;font-weight:600;letter-spacing:-0.03em;line-height:1;
+  background:linear-gradient(120deg,#9B5DE5 0%,#F15BB5 28%,#FEE440 60%,#06D6A0 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.subtitle{font-size:16px;color:#6b6d86;margin-top:14px;font-weight:300;line-height:1.6}
+.chart-wrap{position:relative}
+#chart{display:block;width:100%;height:auto}
+.tooltip{
+  position:fixed;background:rgba(6,7,15,0.95);
+  border:1px solid rgba(255,255,255,0.1);backdrop-filter:blur(24px);
+  border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.55;
+  pointer-events:none;opacity:0;transition:opacity 0.12s;z-index:99;max-width:240px;
+}
+.tt-name{font-weight:500;font-size:14px;margin-bottom:5px}
+.tt-meta{color:#8a8caa}
+.legend{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:38px}
+.leg-item{
+  display:flex;align-items:center;gap:9px;font-size:13px;color:#7a7c98;
+  cursor:pointer;transition:color 0.15s;user-select:none;
+}
+.leg-item:hover{color:#d4d6f0}
+.leg-swatch{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.footer{margin-top:56px;font-size:13px;color:#404258}
+.footer a{color:#5a5c78;text-decoration:none;border-bottom:1px dotted #404258}
+.footer a:hover{color:#9b9db8}
+</style>
+</head>
+<body>
+<div class="page-header">
+  <a class="back" href="index.html">← overview</a>
+  <h1>a decade in code</h1>
+  <div class="subtitle">
+    viacheslav ivannikov &nbsp;·&nbsp; 10 domains &nbsp;·&nbsp; 2015 – 2026<br>
+    hover a band to isolate it &nbsp;·&nbsp; x-axis = year &nbsp;·&nbsp; band thickness = activity
+  </div>
+</div>
+
+<div class="chart-wrap">
+  <div class="tooltip" id="tt"></div>
+  <svg id="chart"></svg>
+</div>
+<div class="legend" id="legend"></div>
+
+<div class="footer">
+  <a href="timeline.html">switch to skill timeline →</a>
+  &nbsp;&nbsp;·&nbsp;&nbsp; github.com/neonsecret
+</div>
+
+<script>
+const DOMAINS = [
+  {key:'cpp',    name:'C++ & Algorithms',              color:'#9B5DE5',
+   pts:[[2015,2],[2016,2.5],[2017,4],[2018,5],[2019,7],[2020,7],[2021,7],[2022,7],[2023,4],[2024,4],[2025,4],[2026.4,4]]},
+  {key:'creative',name:'Design · Video · 3D',          color:'#F15BB5',
+   pts:[[2015,0],[2016,1],[2017,3],[2018,4.5],[2019,5.5],[2020,5],[2021,6],[2022,6],[2023,4],[2024,3],[2025,0],[2026.4,0]]},
+  {key:'web',    name:'Web & Frontend',                color:'#00BBF9',
+   pts:[[2015,0],[2016,0],[2017,3],[2018,4],[2019,4],[2020,3],[2021,3],[2022,4],[2023,5],[2024,6],[2025,7],[2026.4,7]]},
+  {key:'java',   name:'Java',                          color:'#E05C5C',
+   pts:[[2015,0],[2016,0],[2017,4],[2018,6],[2019,6],[2020,5],[2021,3],[2022,1],[2023,0],[2024,0],[2025,0],[2026.4,0]]},
+  {key:'linux',  name:'Linux · Security · Systems',    color:'#00F5D4',
+   pts:[[2015,0],[2016,0],[2017,0],[2018,1],[2019,4.5],[2020,3],[2021,4],[2022,6],[2023,7],[2024,8],[2025,9],[2026.4,10]]},
+  {key:'python', name:'Python & ML',                   color:'#FEE440',
+   pts:[[2015,0],[2016,0],[2017,0.5],[2018,1],[2019,1.5],[2020,4],[2021,7],[2022,8],[2023,8],[2024,8],[2025,8],[2026.4,9]]},
+  {key:'genai',  name:'Generative AI & Voice',         color:'#FF6B6B',
+   pts:[[2015,0],[2016,0],[2017,0],[2018,0],[2019,0],[2020,0],[2021,0],[2022,8],[2023,9],[2024,7],[2025,5],[2026.4,4]]},
+  {key:'cuda',   name:'Inference & CUDA Optimization', color:'#4CC9F0',
+   pts:[[2015,0],[2016,0],[2017,0],[2018,0],[2019,0],[2020,0],[2021,1],[2022,5],[2023,8],[2024,8],[2025,9],[2026.4,10]]},
+  {key:'backend',name:'Backend & Cloud',               color:'#F77F00',
+   pts:[[2015,0],[2016,0],[2017,0],[2018,0],[2019,0],[2020,0],[2021,1],[2022,5],[2023,7],[2024,7],[2025,8],[2026.4,9]]},
+  {key:'agents', name:'LLM Agents & RAG',              color:'#06D6A0',
+   pts:[[2015,0],[2016,0],[2017,0],[2018,0],[2019,0],[2020,0],[2021,0],[2022,0],[2023,1],[2024,6],[2025,13],[2026.4,15]]},
+];
+
+const MILESTONES = [
+  {year:2015.5, label:'Hello World in C++',            offset:0},
+  {year:2017.0, label:'Coding school · HTML/CSS/Java', offset:1},
+  {year:2017.75,label:'First CNN (watermark removal · age 12)', offset:0},
+  {year:2019.2, label:'Kali Linux · WiFi hacking',     offset:1},
+  {year:2019.5, label:'Competitive programming',       offset:0},
+  {year:2020.6, label:'Python & first neural nets',    offset:1},
+  {year:2022.4, label:'Voice cloning ★55',             offset:0},
+  {year:2022.75,label:'Stable Diffusion ★593',         offset:1},
+  {year:2022.83,label:'Co-founder artroom.ai',         offset:0},
+  {year:2025.55,label:'hermes-agent 6,613 commits',     offset:0},
+  {year:2025.9, label:'Rohlik AI Engineer',            offset:1},
+  {year:2025.95,label:'MarzipanTech contractor',       offset:0},
+  {year:2026.2, label:'Paperclip AI OS',               offset:1},
+  {year:2026.25,label:'Founded Vitreon Legal',         offset:0},
+  {year:2026.32,label:'ARLC 0.920 · NeurIPS 2026 sub',  offset:1},
+];
+
+// ── chart geometry ────────────────────────────────────────────────────────────
+const W=1440, H=700;
+const M={top:24,right:32,bottom:90,left:20};
+const iW=W-M.left-M.right, iH=H-M.top-M.bottom;
+
+const svg=d3.select('#chart')
+  .attr('viewBox',`0 0 ${W} ${H}`)
+  .attr('preserveAspectRatio','xMidYMid meet');
+
+// defs: glow filter
+const defs=svg.append('defs');
+const glowFilter=defs.append('filter').attr('id','glow')
+  .attr('x','-15%').attr('y','-15%').attr('width','130%').attr('height','130%');
+glowFilter.append('feGaussianBlur').attr('stdDeviation','4').attr('result','blur');
+const merge=glowFilter.append('feMerge');
+merge.append('feMergeNode').attr('in','blur');
+merge.append('feMergeNode').attr('in','SourceGraphic');
+
+// vertical gradient per domain — bright in center, transparent at top/bottom edges
+DOMAINS.forEach(d=>{
+  const gr=defs.append('linearGradient')
+    .attr('id',`grad-${d.key}`)
+    .attr('x1','0%').attr('x2','0%')
+    .attr('y1',0).attr('y2',iH)
+    .attr('gradientUnits','userSpaceOnUse');
+  gr.append('stop').attr('offset','0%')  .attr('stop-color',d.color).attr('stop-opacity',0.02);
+  gr.append('stop').attr('offset','28%') .attr('stop-color',d.color).attr('stop-opacity',0.80);
+  gr.append('stop').attr('offset','50%') .attr('stop-color',d.color).attr('stop-opacity',0.96);
+  gr.append('stop').attr('offset','72%') .attr('stop-color',d.color).attr('stop-opacity',0.80);
+  gr.append('stop').attr('offset','100%').attr('stop-color',d.color).attr('stop-opacity',0.02);
+});
+
+const g=svg.append('g').attr('transform',`translate(${M.left},${M.top})`);
+
+// ── interpolate to monthly resolution ─────────────────────────────────────────
+const Y0=2015, Y1=2026.5;
+const months=d3.range(Y0*12, Math.ceil(Y1*12)).map(m=>m/12);
+
+function makeInterp(pts){
+  const sc=d3.scaleLinear().domain(pts.map(d=>d[0])).range(pts.map(d=>d[1])).clamp(true);
+  return m=>Math.max(0, sc(m));
+}
+
+const interpFns=Object.fromEntries(DOMAINS.map(d=>[d.key, makeInterp(d.pts)]));
+
+const stackData=months.map(m=>{
+  const row={year:m};
+  DOMAINS.forEach(d=>{ row[d.key]=interpFns[d.key](m); });
+  return row;
+});
+
+// ── stack ─────────────────────────────────────────────────────────────────────
+const stack=d3.stack()
+  .keys(DOMAINS.map(d=>d.key))
+  .offset(d3.stackOffsetWiggle)
+  .order(d3.stackOrderInsideOut);
+
+const layers=stack(stackData);
+const yExt=[
+  d3.min(layers,l=>d3.min(l,d=>d[0])),
+  d3.max(layers,l=>d3.max(l,d=>d[1]))
+];
+
+const xSc=d3.scaleLinear().domain([Y0,Y1]).range([0,iW]);
+const ySc=d3.scaleLinear().domain(yExt).range([iH,0]);
+const colorMap=Object.fromEntries(DOMAINS.map(d=>[d.key,d.color]));
+
+// ── area ──────────────────────────────────────────────────────────────────────
+const area=d3.area()
+  .x(d=>xSc(d.data.year))
+  .y0(d=>ySc(d[0]))
+  .y1(d=>ySc(d[1]))
+  .curve(d3.curveBasis);
+
+// ── background grid ───────────────────────────────────────────────────────────
+d3.range(Y0,Math.ceil(Y1)).forEach(yr=>{
+  g.append('line')
+    .attr('x1',xSc(yr)).attr('x2',xSc(yr))
+    .attr('y1',0).attr('y2',iH)
+    .attr('stroke','rgba(255,255,255,0.035)')
+    .attr('stroke-width',1);
+});
+
+// ── paths ─────────────────────────────────────────────────────────────────────
+const tt=document.getElementById('tt');
+let hoveredKey=null;
+
+const paths=g.selectAll('.layer')
+  .data(layers)
+  .enter().append('path')
+  .attr('d',area)
+  .attr('fill',(_,i)=>`url(#grad-${DOMAINS[i].key})`)
+  .style('cursor','pointer')
+  .on('mousemove',function(ev,d){
+    const [mx]=d3.pointer(ev);
+    const yr=xSc.invert(mx);
+    const dom=DOMAINS.find(x=>x.key===d.key);
+    const val=Math.round(interpFns[d.key](yr)*10)/10;
+    tt.style.opacity='1';
+    tt.style.left=(ev.clientX+16)+'px';
+    tt.style.top=(ev.clientY-20)+'px';
+    tt.innerHTML=`<div class="tt-name" style="color:${dom.color}">${dom.name}</div>
+      <div class="tt-meta">${Math.floor(yr)} &nbsp;·&nbsp; intensity ${val}/10</div>`;
+    paths.style('opacity',p=>p.key===d.key?1:0.1);
+    d3.select(this).attr('filter','url(#glow)');
+    hoveredKey=d.key;
+  })
+  .on('mouseleave',function(){
+    tt.style.opacity='0';
+    paths.style('opacity',1).attr('filter',null);
+    hoveredKey=null;
+  });
+
+// ── milestones ────────────────────────────────────────────────────────────────
+const ms=g.append('g');
+MILESTONES.forEach(m=>{
+  const x=xSc(m.year);
+  ms.append('line')
+    .attr('x1',x).attr('x2',x).attr('y1',0).attr('y2',iH+18)
+    .attr('stroke','rgba(255,255,255,0.18)').attr('stroke-width',1)
+    .attr('stroke-dasharray','3 5');
+  ms.append('circle')
+    .attr('cx',x).attr('cy',iH+18).attr('r',2.5)
+    .attr('fill','rgba(255,255,255,0.5)');
+  ms.append('text')
+    .attr('x',x+5)
+    .attr('y',iH+32+(m.offset===1?16:0))
+    .attr('fill','#666880').attr('font-size','11')
+    .attr('font-family','Space Grotesk, system-ui')
+    .text(m.label);
+});
+
+// ── x-axis ────────────────────────────────────────────────────────────────────
+const ax=d3.axisBottom(xSc)
+  .tickValues(d3.range(2015,2027))
+  .tickFormat(d=>String(d))
+  .tickSize(4);
+
+g.append('g').attr('transform',`translate(0,${iH})`)
+  .call(ax)
+  .call(a=>{
+    a.select('.domain').attr('stroke','rgba(255,255,255,0.08)');
+    a.selectAll('.tick line').attr('stroke','rgba(255,255,255,0.08)');
+    a.selectAll('.tick text')
+      .attr('fill','#4a4c6a').attr('font-size','12')
+      .attr('font-family','Space Grotesk, system-ui').attr('dy','1.3em');
+  });
+
+// ── legend ────────────────────────────────────────────────────────────────────
+const legendEl=document.getElementById('legend');
+[...DOMAINS].reverse().forEach(d=>{
+  const el=document.createElement('div');
+  el.className='leg-item';
+  el.innerHTML=`<div class="leg-swatch" style="background:${d.color}"></div>${d.name}`;
+  el.addEventListener('mouseenter',()=>{
+    paths.style('opacity',p=>p.key===d.key?1:0.1);
+  });
+  el.addEventListener('mouseleave',()=>{
+    paths.style('opacity',1);
+  });
+  legendEl.appendChild(el);
+});
+</script>
+</body>
+</html>

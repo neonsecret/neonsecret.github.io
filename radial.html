@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>neonsecret · radial skill timeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #06070f;
+    color: #e8e8f0;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body {
+    background:
+      radial-gradient(ellipse at center, rgba(155,93,229,0.10) 0%, rgba(6,7,15,0) 55%),
+      radial-gradient(ellipse at 20% 80%, rgba(0,187,249,0.06) 0%, rgba(6,7,15,0) 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(255,107,107,0.05) 0%, rgba(6,7,15,0) 50%),
+      #06070f;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 80px;
+  }
+  .back-link {
+    position: fixed;
+    top: 18px;
+    left: 22px;
+    color: rgba(232,232,240,0.55);
+    text-decoration: none;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border: 1px solid rgba(232,232,240,0.12);
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
+    background: rgba(6,7,15,0.55);
+    transition: color 0.2s, border-color 0.2s;
+    z-index: 100;
+  }
+  .back-link:hover { color: #fff; border-color: rgba(232,232,240,0.4); }
+  header {
+    text-align: center;
+    margin: 12px 0 8px;
+    max-width: 720px;
+  }
+  header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    background: linear-gradient(90deg, #9B5DE5, #00BBF9, #FEE440, #06D6A0);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  header p {
+    font-size: 13px;
+    color: rgba(232,232,240,0.55);
+    margin-top: 6px;
+    letter-spacing: 0.04em;
+  }
+  #chart {
+    position: relative;
+    width: 1100px;
+    max-width: 100%;
+    aspect-ratio: 1 / 1;
+  }
+  svg { display: block; width: 100%; height: 100%; }
+  .ghost-arc { fill: rgba(255,255,255,0.07); }
+  .skill-arc {
+    cursor: pointer;
+    transition: filter 0.2s, opacity 0.2s;
+  }
+  .skill-arc:hover {
+    filter: brightness(1.4) drop-shadow(0 0 6px currentColor);
+  }
+  .year-tick {
+    stroke: rgba(232,232,240,0.35);
+    stroke-width: 1;
+  }
+  .year-label {
+    fill: rgba(232,232,240,0.55);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+  }
+  .domain-label {
+    fill: rgba(232,232,240,0.7);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-anchor: middle;
+    pointer-events: none;
+  }
+  .now-line {
+    stroke: #ffffff;
+    stroke-width: 1.5;
+    stroke-dasharray: 4 3;
+    opacity: 0.85;
+    filter: drop-shadow(0 0 4px rgba(255,255,255,0.6));
+  }
+  .now-label {
+    fill: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .center-title {
+    fill: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    text-anchor: middle;
+    letter-spacing: 0.04em;
+  }
+  .center-sub {
+    fill: rgba(232,232,240,0.55);
+    font-size: 11px;
+    font-weight: 400;
+    text-anchor: middle;
+    letter-spacing: 0.16em;
+  }
+  .milestone {
+    cursor: pointer;
+    transition: filter 0.2s;
+  }
+  .milestone:hover { filter: brightness(1.4) drop-shadow(0 0 6px #fff); }
+  .milestone-label {
+    fill: rgba(255,255,255,0.85);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+  }
+  #tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: rgba(10,11,22,0.96);
+    border: 1px solid rgba(232,232,240,0.18);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    color: #fff;
+    opacity: 0;
+    transition: opacity 0.15s;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    z-index: 200;
+    max-width: 240px;
+  }
+  #tooltip .tt-name {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  #tooltip .tt-row {
+    color: rgba(232,232,240,0.65);
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  #tooltip .tt-row span:last-child { color: #fff; }
+  #tooltip .tt-domain {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(232,232,240,0.1);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  legend.legend {
+    margin-top: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 22px;
+    justify-content: center;
+    max-width: 980px;
+    font-size: 12px;
+    color: rgba(232,232,240,0.7);
+  }
+  legend.legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  legend.legend .swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    box-shadow: 0 0 6px currentColor;
+  }
+</style>
+</head>
+<body>
+<a class="back-link" href="index.html">← back</a>
+
+<header>
+  <h1>cosmic clock · 11 years of building</h1>
+  <p>radial skill timeline · 2015 → 2026 · sunburst by domain</p>
+</header>
+
+<div id="chart">
+  <svg viewBox="0 0 1100 1100" preserveAspectRatio="xMidYMid meet"></svg>
+</div>
+
+<legend class="legend"></legend>
+
+<div id="tooltip"></div>
+
+<script>
+const SKILLS = [
+  {name:'C++',domain:0,start:2015,end:2026.4,depth:8},
+  {name:'Python',domain:0,start:2020,end:2026.4,depth:10},
+  {name:'Java',domain:0,start:2017,end:2021,depth:6},
+  {name:'Algorithms',domain:0,start:2017,end:2026.4,depth:8},
+  {name:'Node graphs',domain:0,start:2016,end:2022,depth:6},
+  {name:'CNN / early ML',domain:0,start:2017,end:2020,depth:4},
+  {name:'Competitive prog',domain:0,start:2019,end:2022,depth:7},
+  {name:'Photoshop',domain:1,start:2017,end:2022,depth:7},
+  {name:'After Effects',domain:1,start:2018,end:2022.5,depth:7},
+  {name:'Blender & 3D',domain:1,start:2019,end:2022.5,depth:8},
+  {name:'Cinema 4D',domain:1,start:2019,end:2022,depth:5},
+  {name:'Drone + DaVinci',domain:1,start:2023,end:2024.5,depth:6},
+  {name:'HTML/CSS',domain:2,start:2017,end:2026.4,depth:7},
+  {name:'JavaScript',domain:2,start:2017,end:2026.4,depth:8},
+  {name:'React',domain:2,start:2022,end:2026.4,depth:7},
+  {name:'TypeScript',domain:2,start:2024,end:2026.4,depth:7},
+  {name:'Node.js',domain:2,start:2022,end:2026.4,depth:6},
+  {name:'Kali/WiFi',domain:3,start:2019,end:2021,depth:6},
+  {name:'Arch Linux',domain:3,start:2022,end:2026.4,depth:9},
+  {name:'Bash',domain:3,start:2018,end:2026.4,depth:8},
+  {name:'Docker',domain:3,start:2022,end:2026.4,depth:9},
+  {name:'K8s/ArgoCD',domain:3,start:2025,end:2026.4,depth:7},
+  {name:'PyTorch',domain:4,start:2021,end:2026.4,depth:10},
+  {name:'TensorFlow',domain:4,start:2021,end:2023,depth:7},
+  {name:'NumPy/Pandas',domain:4,start:2021,end:2026.4,depth:9},
+  {name:'YOLO',domain:4,start:2022,end:2026.4,depth:7},
+  {name:'AR+diffusion',domain:4,start:2025.85,end:2026.4,depth:8},
+  {name:'Stable Diffusion ★593',domain:5,start:2022.6,end:2025,depth:10},
+  {name:'Diffusion models',domain:5,start:2022,end:2026.4,depth:9},
+  {name:'LoRA/Dreambooth',domain:5,start:2022.8,end:2026.4,depth:9},
+  {name:'FLUX.1',domain:5,start:2024,end:2025,depth:8},
+  {name:'DPO',domain:5,start:2024,end:2026.4,depth:7},
+  {name:'Tacotron2/TTS',domain:6,start:2022,end:2023.5,depth:8},
+  {name:'Whisper',domain:6,start:2024,end:2026.4,depth:7},
+  {name:'CUDA',domain:7,start:2022,end:2026.4,depth:8},
+  {name:'FlashAttention',domain:7,start:2022,end:2026.4,depth:9},
+  {name:'Quantization',domain:7,start:2022,end:2026.4,depth:8},
+  {name:'vLLM',domain:7,start:2025,end:2026.4,depth:8},
+  {name:'TensorRT',domain:7,start:2023,end:2026.4,depth:7},
+  {name:'FastAPI',domain:8,start:2022,end:2026.4,depth:10},
+  {name:'AWS/GCP',domain:8,start:2022,end:2026.4,depth:8},
+  {name:'Redis',domain:8,start:2022,end:2026.4,depth:8},
+  {name:'Elasticsearch',domain:8,start:2024,end:2026.4,depth:8},
+  {name:'Langfuse',domain:8,start:2025,end:2026.4,depth:8},
+  {name:'LangChain',domain:9,start:2024,end:2026.4,depth:9},
+  {name:'LangGraph',domain:9,start:2025,end:2026.4,depth:10},
+  {name:'DSPy',domain:9,start:2025,end:2026.4,depth:8},
+  {name:'MCP/FastMCP',domain:9,start:2025.5,end:2026.4,depth:9},
+  {name:'GraphRAG',domain:9,start:2026,end:2026.4,depth:8},
+  {name:'hermes-agent',domain:9,start:2025.6,end:2026.4,depth:8},
+  {name:'Paperclip',domain:9,start:2026.2,end:2026.4,depth:8},
+  {name:'Swift',domain:10,start:2023,end:2026.4,depth:6},
+  {name:'Rust',domain:10,start:2026,end:2026.4,depth:4},
+];
+const DOMAIN_NAMES = ['Programming Foundations','Design · Video · 3D','Web & Frontend','Linux · Security','AI / ML Core','Generative AI','Voice & Speech','Inference & CUDA','Backend & Cloud','LLM Agents & RAG','Native & Systems'];
+const DOMAIN_COLORS = ['#9B5DE5','#F15BB5','#00BBF9','#00F5D4','#FEE440','#FF6B6B','#BD93F9','#4CC9F0','#F77F00','#06D6A0','#C084FC'];
+
+const MILESTONES = [
+  {year: 2017.75, label: 'First CNN', shape: 'star'},
+  {year: 2022.75, label: 'SD ★593', shape: 'diamond'},
+  {year: 2025.9, label: 'Rohlik', shape: 'star'},
+  {year: 2026.25, label: 'NeurIPS', shape: 'diamond'},
+];
+
+const W = 1100, H = 1100, CX = 550, CY = 550;
+const INNER_R = 90;
+const RING_THICKNESS = 36;
+const RING_GAP = 4;
+const NUM_RINGS = 11;
+const SPAN_YEARS = 11.42;
+const START_YEAR = 2015;
+const NOW_YEAR = 2026.42;
+
+function toAngle(year) {
+  return ((year - START_YEAR) / SPAN_YEARS) * 2 * Math.PI - Math.PI / 2;
+}
+
+function ringRadii(domain) {
+  const center = INNER_R + domain * (RING_THICKNESS + RING_GAP) + RING_THICKNESS / 2;
+  return {
+    inner: INNER_R + domain * (RING_THICKNESS + RING_GAP),
+    outer: INNER_R + domain * (RING_THICKNESS + RING_GAP) + RING_THICKNESS,
+    center
+  };
+}
+
+const OUTER_R = ringRadii(NUM_RINGS - 1).outer; // ~530
+
+const svg = d3.select('#chart svg');
+
+// defs: radial gradient backdrop
+const defs = svg.append('defs');
+const grad = defs.append('radialGradient')
+  .attr('id', 'bgGrad')
+  .attr('cx', '50%').attr('cy', '50%').attr('r', '50%');
+grad.append('stop').attr('offset', '0%').attr('stop-color', '#101127').attr('stop-opacity', 0.6);
+grad.append('stop').attr('offset', '70%').attr('stop-color', '#06070f').attr('stop-opacity', 0.2);
+grad.append('stop').attr('offset', '100%').attr('stop-color', '#06070f').attr('stop-opacity', 0);
+
+svg.append('circle')
+  .attr('cx', CX).attr('cy', CY).attr('r', OUTER_R + 40)
+  .attr('fill', 'url(#bgGrad)');
+
+const g = svg.append('g').attr('transform', `translate(${CX},${CY})`);
+
+// ---- ghost ring backgrounds ----
+for (let d = 0; d < NUM_RINGS; d++) {
+  const r = ringRadii(d);
+  const arc = d3.arc()
+    .innerRadius(r.inner)
+    .outerRadius(r.outer)
+    .startAngle(0)
+    .endAngle(2 * Math.PI);
+  g.append('path')
+    .attr('class', 'ghost-arc')
+    .attr('d', arc())
+    .attr('fill', DOMAIN_COLORS[d])
+    .attr('opacity', 0.07);
+}
+
+// ---- subtle ring divider circles ----
+for (let d = 0; d <= NUM_RINGS; d++) {
+  const rad = INNER_R + d * (RING_THICKNESS + RING_GAP) - (d === 0 ? 0 : RING_GAP / 2);
+  g.append('circle')
+    .attr('r', rad)
+    .attr('fill', 'none')
+    .attr('stroke', 'rgba(255,255,255,0.04)')
+    .attr('stroke-width', 0.5);
+}
+
+// ---- year tick marks + labels ----
+const tickLayer = g.append('g').attr('class', 'ticks');
+for (let y = 2015; y <= 2026; y++) {
+  const a = toAngle(y);
+  const x1 = Math.cos(a) * (OUTER_R + 4);
+  const y1 = Math.sin(a) * (OUTER_R + 4);
+  const x2 = Math.cos(a) * (OUTER_R + 14);
+  const y2 = Math.sin(a) * (OUTER_R + 14);
+  tickLayer.append('line')
+    .attr('class', 'year-tick')
+    .attr('x1', x1).attr('y1', y1)
+    .attr('x2', x2).attr('y2', y2);
+  const lx = Math.cos(a) * (OUTER_R + 30);
+  const ly = Math.sin(a) * (OUTER_R + 30);
+  tickLayer.append('text')
+    .attr('class', 'year-label')
+    .attr('x', lx).attr('y', ly)
+    .attr('text-anchor', 'middle')
+    .attr('dominant-baseline', 'middle')
+    .text(y);
+}
+
+// outer boundary circle
+g.append('circle')
+  .attr('r', OUTER_R)
+  .attr('fill', 'none')
+  .attr('stroke', 'rgba(255,255,255,0.18)')
+  .attr('stroke-width', 1);
+
+// ---- skill arcs (with stacking for overlapping in same ring) ----
+function stackSkills(skills) {
+  // For each domain, detect overlap groups and assign sub-offsets within ring.
+  const byDomain = d3.group(skills, d => d.domain);
+  const result = [];
+  for (const [domain, list] of byDomain) {
+    // sort by start
+    list.sort((a, b) => a.start - b.start);
+    // assign lanes
+    const lanes = []; // each lane = array of skills
+    list.forEach(s => {
+      let placed = false;
+      for (const lane of lanes) {
+        const last = lane[lane.length - 1];
+        if (last.end <= s.start + 0.01) {
+          lane.push(s); placed = true; break;
+        }
+      }
+      if (!placed) lanes.push([s]);
+    });
+    // assign laneIndex + total lanes
+    const totalLanes = lanes.length;
+    lanes.forEach((lane, idx) => {
+      lane.forEach(s => {
+        result.push({...s, lane: idx, totalLanes});
+      });
+    });
+  }
+  return result;
+}
+
+const stacked = stackSkills(SKILLS);
+
+const arcLayer = g.append('g').attr('class', 'arcs');
+
+stacked.forEach(s => {
+  const r = ringRadii(s.domain);
+  const fullThickness = RING_THICKNESS - 4; // breathing room
+  const baseThickness = 28 * (s.depth / 10);
+  const a0 = toAngle(s.start);
+  const a1 = toAngle(s.end);
+
+  // adjust radii based on lane stacking
+  let inner, outer;
+  if (s.totalLanes === 1) {
+    const half = baseThickness / 2;
+    inner = r.center - half;
+    outer = r.center + half;
+  } else {
+    // distribute across ring
+    const laneHeight = fullThickness / s.totalLanes;
+    const laneThickness = Math.min(baseThickness, laneHeight * 0.92);
+    const laneCenter = r.inner + 2 + laneHeight * (s.lane + 0.5);
+    inner = laneCenter - laneThickness / 2;
+    outer = laneCenter + laneThickness / 2;
+  }
+
+  const arcGen = d3.arc()
+    .innerRadius(inner)
+    .outerRadius(outer)
+    .startAngle(a0 + Math.PI / 2) // d3 arcs use 0 = top, but we already shifted; convert back
+    .endAngle(a1 + Math.PI / 2)
+    .cornerRadius(2);
+
+  arcLayer.append('path')
+    .attr('class', 'skill-arc')
+    .attr('d', arcGen())
+    .attr('fill', DOMAIN_COLORS[s.domain])
+    .attr('stroke', 'rgba(0,0,0,0.35)')
+    .attr('stroke-width', 0.5)
+    .attr('opacity', 0.92)
+    .style('color', DOMAIN_COLORS[s.domain])
+    .on('mousemove', (event) => showTip(event, s))
+    .on('mouseleave', hideTip);
+});
+
+// ---- domain labels at top (angle = -π/2, the "12 o'clock") ----
+const labelLayer = g.append('g').attr('class', 'domain-labels');
+for (let d = 0; d < NUM_RINGS; d++) {
+  const r = ringRadii(d);
+  // place label slightly to the right of the now-line so it doesn't collide
+  // we place at angle = -π/2 - 0.04 (just before 2015 tick), centered along ring
+  const a = -Math.PI / 2 - 0.015;
+  const lx = Math.cos(a) * r.center;
+  const ly = Math.sin(a) * r.center;
+  // tangential rotation
+  const rot = (a * 180 / Math.PI) + 90;
+  labelLayer.append('text')
+    .attr('class', 'domain-label')
+    .attr('x', lx).attr('y', ly)
+    .attr('transform', `rotate(${rot} ${lx} ${ly})`)
+    .attr('dominant-baseline', 'middle')
+    .attr('fill', DOMAIN_COLORS[d])
+    .attr('opacity', 0.85)
+    .text(DOMAIN_NAMES[d]);
+}
+
+// ---- "now" line ----
+const nowA = toAngle(NOW_YEAR);
+g.append('line')
+  .attr('class', 'now-line')
+  .attr('x1', Math.cos(nowA) * INNER_R)
+  .attr('y1', Math.sin(nowA) * INNER_R)
+  .attr('x2', Math.cos(nowA) * (OUTER_R + 18))
+  .attr('y2', Math.sin(nowA) * (OUTER_R + 18));
+
+g.append('text')
+  .attr('class', 'now-label')
+  .attr('x', Math.cos(nowA) * (OUTER_R + 50))
+  .attr('y', Math.sin(nowA) * (OUTER_R + 50))
+  .attr('text-anchor', 'middle')
+  .attr('dominant-baseline', 'middle')
+  .text('NOW');
+
+// ---- milestone markers ----
+function starPath(cx, cy, r) {
+  const pts = [];
+  for (let i = 0; i < 10; i++) {
+    const ang = (Math.PI / 5) * i - Math.PI / 2;
+    const rad = (i % 2 === 0) ? r : r * 0.45;
+    pts.push([cx + Math.cos(ang) * rad, cy + Math.sin(ang) * rad]);
+  }
+  return 'M' + pts.map(p => p.join(',')).join(' L') + 'Z';
+}
+function diamondPath(cx, cy, r) {
+  return `M${cx},${cy - r} L${cx + r},${cy} L${cx},${cy + r} L${cx - r},${cy} Z`;
+}
+
+const milestoneLayer = g.append('g').attr('class', 'milestones');
+MILESTONES.forEach(m => {
+  const a = toAngle(m.year);
+  const mr = OUTER_R + 4;
+  const cx = Math.cos(a) * mr;
+  const cy = Math.sin(a) * mr;
+  const path = m.shape === 'star' ? starPath(cx, cy, 7) : diamondPath(cx, cy, 6);
+  milestoneLayer.append('path')
+    .attr('class', 'milestone')
+    .attr('d', path)
+    .attr('fill', '#fff')
+    .attr('stroke', '#FEE440')
+    .attr('stroke-width', 1)
+    .style('filter', 'drop-shadow(0 0 4px rgba(254,228,64,0.8))')
+    .on('mousemove', (event) => showMilestoneTip(event, m))
+    .on('mouseleave', hideTip);
+
+  // label outside, oriented radially
+  const lr = OUTER_R + 60;
+  const lx = Math.cos(a) * lr;
+  const ly = Math.sin(a) * lr;
+  let rot = (a * 180 / Math.PI);
+  // flip if upside down
+  if (rot > 90 || rot < -90) rot += 180;
+  milestoneLayer.append('text')
+    .attr('class', 'milestone-label')
+    .attr('x', lx).attr('y', ly)
+    .attr('transform', `rotate(${rot} ${lx} ${ly})`)
+    .attr('text-anchor', 'middle')
+    .attr('dominant-baseline', 'middle')
+    .text(m.label);
+});
+
+// ---- center disk ----
+const centerGrad = defs.append('radialGradient')
+  .attr('id', 'centerGrad')
+  .attr('cx', '50%').attr('cy', '50%').attr('r', '50%');
+centerGrad.append('stop').attr('offset', '0%').attr('stop-color', '#1a1b35').attr('stop-opacity', 1);
+centerGrad.append('stop').attr('offset', '100%').attr('stop-color', '#06070f').attr('stop-opacity', 1);
+
+g.append('circle')
+  .attr('r', INNER_R - 2)
+  .attr('fill', 'url(#centerGrad)')
+  .attr('stroke', 'rgba(255,255,255,0.15)')
+  .attr('stroke-width', 1);
+
+g.append('circle')
+  .attr('r', INNER_R - 14)
+  .attr('fill', 'none')
+  .attr('stroke', 'rgba(255,255,255,0.08)')
+  .attr('stroke-width', 0.5);
+
+g.append('text')
+  .attr('class', 'center-title')
+  .attr('y', -6)
+  .text('neonsecret');
+
+g.append('text')
+  .attr('class', 'center-sub')
+  .attr('y', 16)
+  .text('2015 → 2026');
+
+// ---- tooltip ----
+const tooltip = d3.select('#tooltip');
+function showTip(event, s) {
+  const yrs = `${s.start.toFixed(s.start % 1 ? 2 : 0)} → ${s.end >= 2026.4 ? 'now' : s.end.toFixed(s.end % 1 ? 2 : 0)}`;
+  tooltip.html(`
+    <div class="tt-name" style="color:${DOMAIN_COLORS[s.domain]}">${s.name}</div>
+    <div class="tt-row"><span>Years</span><span>${yrs}</span></div>
+    <div class="tt-row"><span>Depth</span><span>${s.depth} / 10</span></div>
+    <div class="tt-row"><span>Span</span><span>${(s.end - s.start).toFixed(1)} yrs</span></div>
+    <div class="tt-domain" style="color:${DOMAIN_COLORS[s.domain]}">${DOMAIN_NAMES[s.domain]}</div>
+  `);
+  positionTip(event);
+}
+function showMilestoneTip(event, m) {
+  tooltip.html(`
+    <div class="tt-name" style="color:#FEE440">★ ${m.label}</div>
+    <div class="tt-row"><span>Year</span><span>${m.year}</span></div>
+    <div class="tt-domain" style="color:#FEE440">Milestone</div>
+  `);
+  positionTip(event);
+}
+function positionTip(event) {
+  const x = event.clientX + 14;
+  const y = event.clientY + 14;
+  tooltip
+    .style('left', x + 'px')
+    .style('top', y + 'px')
+    .style('opacity', 1);
+}
+function hideTip() {
+  tooltip.style('opacity', 0);
+}
+
+// ---- legend ----
+const legend = d3.select('legend.legend');
+DOMAIN_NAMES.forEach((name, i) => {
+  const item = legend.append('div').attr('class', 'legend-item');
+  item.append('span')
+    .attr('class', 'swatch')
+    .style('background', DOMAIN_COLORS[i])
+    .style('color', DOMAIN_COLORS[i]);
+  item.append('span').text(name);
+});
+</script>
+</body>
+</html>

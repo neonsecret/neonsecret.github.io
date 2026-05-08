@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>a decade in code · skill timeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{background:#06070f}
+body{
+  background:radial-gradient(ellipse 160% 70% at 50% -10%,#1c1040 0%,#06070f 55%);
+  color:#d4d6f0;
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  padding:64px 56px 100px;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+.page-header{margin-bottom:52px}
+.back{
+  display:inline-flex;align-items:center;gap:6px;
+  color:#6b6d86;font-size:13px;text-decoration:none;
+  border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:6px 14px;
+  margin-bottom:28px;transition:color 0.15s,border-color 0.15s;
+}
+.back:hover{color:#d4d6f0;border-color:rgba(255,255,255,0.18)}
+h1{
+  font-size:52px;font-weight:600;letter-spacing:-0.03em;line-height:1;
+  background:linear-gradient(120deg,#9B5DE5 0%,#F15BB5 28%,#FEE440 60%,#06D6A0 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.subtitle{font-size:16px;color:#6b6d86;margin-top:14px;font-weight:300;line-height:1.6}
+#chart-container{position:relative;overflow-x:auto}
+svg{display:block}
+.cat-label{
+  fill:#d4d6f0;font-weight:600;font-size:13px;letter-spacing:0.04em;
+  text-transform:uppercase;font-family:'Space Grotesk',system-ui;
+}
+.skill-label{fill:#9b9db8;font-size:13px;font-family:'Space Grotesk',system-ui}
+.skill-label.active{fill:#d4d6f0}
+.note-label{fill:#5a5c78;font-size:11px;font-family:'Space Grotesk',system-ui;font-style:italic}
+.axis-text{fill:#3e405a;font-size:12px;font-family:'Space Grotesk',system-ui}
+.axis-line{stroke:rgba(255,255,255,0.05);stroke-width:1}
+.now-line{stroke:rgba(255,255,255,0.3);stroke-width:1.5;stroke-dasharray:none}
+.now-label{fill:rgba(255,255,255,0.5);font-size:11px;font-family:'Space Grotesk',system-ui;font-weight:500}
+.ms-line{stroke:rgba(255,255,255,0.12);stroke-width:1;stroke-dasharray:3 5}
+.ms-label{fill:#48485f;font-size:11px;font-family:'Space Grotesk',system-ui}
+.tooltip{
+  position:fixed;background:rgba(6,7,15,0.96);
+  border:1px solid rgba(255,255,255,0.1);backdrop-filter:blur(24px);
+  border-radius:10px;padding:12px 16px;font-size:13px;line-height:1.55;
+  pointer-events:none;opacity:0;transition:opacity 0.12s;z-index:99;max-width:260px;
+}
+.tt-name{font-weight:500;font-size:14px;margin-bottom:5px}
+.tt-meta{color:#8a8caa;margin-bottom:3px}
+.tt-note{color:#6b6d86;font-size:12px}
+.footer{margin-top:56px;font-size:13px;color:#404258}
+.footer a{color:#5a5c78;text-decoration:none;border-bottom:1px dotted #404258}
+.footer a:hover{color:#9b9db8}
+</style>
+</head>
+<body>
+<div class="page-header">
+  <a class="back" href="index.html">← overview</a>
+  <h1>skill timeline</h1>
+  <div class="subtitle">
+    each bar = first contact → latest activity &nbsp;·&nbsp; gradient intensity = depth of mastery<br>
+    faded = inactive · bright = currently active
+  </div>
+</div>
+
+<div id="chart-container">
+  <div class="tooltip" id="tt"></div>
+  <svg id="chart"></svg>
+</div>
+
+<div class="footer">
+  <a href="streamgraph.html">switch to streamgraph →</a>
+  &nbsp;&nbsp;·&nbsp;&nbsp; github.com/neonsecret
+</div>
+
+<script>
+// ── data ──────────────────────────────────────────────────────────────────────
+// depth: 1-10 (mastery at end of period)
+// active: true = still current
+const CATS = [
+  {
+    name: 'Foundations', color: '#9B5DE5',
+    skills: [
+      {name:'C++',              start:2015,   end:2026.4, depth:8,  active:true,  note:'hello world at 10 · school 14-18 · DP · city olympiads'},
+      {name:'Competitive Programming · Olympiads', start:2019, end:2022, depth:7, active:false, decay:0.25, note:'dynamic programming · city-scale competitions'},
+      {name:'Algorithms & DSA', start:2017,   end:2026.4, depth:8,  active:true},
+      {name:'Python',           start:2020,   end:2026.4, depth:10, active:true},
+      {name:'Java',             start:2017,   end:2021,   depth:6,  active:false, decay:0,    note:'coding school → university'},
+      {name:'Node graph / visual programming', start:2016, end:2022, depth:6, active:false, decay:0.15, note:'Floppy (2016) → logic-node-editor → neural_nodes (401 commits open-source)'},
+      {name:'CNN / early deep learning', start:2017, end:2020, depth:4, active:false, decay:0.2, note:'watermark removal CNN · age 12 · pre-PyTorch'},
+    ]
+  },
+  {
+    name: 'Design · Video · 3D', color: '#F15BB5',
+    skills: [
+      {name:'Photoshop / GIMP',        start:2017,   end:2022,   depth:7, active:false, decay:0.25},
+      {name:'After Effects · Premiere · Sony Vegas', start:2018, end:2022.5, depth:7, active:false, decay:0.1},
+      {name:'Blender & 3D rendering',  start:2019,   end:2022.5, depth:8, active:false, decay:0.15, note:'several years, stopped ~2022'},
+      {name:'Cinema 4D (C4D)',          start:2019,   end:2022,   depth:5, active:false, decay:0.05},
+      {name:'Drone filming · DaVinci Resolve', start:2023, end:2024.5, depth:6, active:false, decay:0.1, note:'DJI footage · aerial filming + editing'},
+    ]
+  },
+  {
+    name: 'Web & Frontend', color: '#00BBF9',
+    skills: [
+      {name:'HTML / CSS',   start:2017,   end:2026.4, depth:7,  active:true, note:'coding school'},
+      {name:'JavaScript',   start:2017,   end:2026.4, depth:8,  active:true},
+      {name:'React',        start:2022,   end:2026.4, depth:7,  active:true},
+      {name:'TypeScript',   start:2024,   end:2026.4, depth:7,  active:true},
+      {name:'Node.js',      start:2022,   end:2026.4, depth:6,  active:true},
+    ]
+  },
+  {
+    name: 'Linux · Security · Systems', color: '#00F5D4',
+    skills: [
+      {name:'Kali Linux · aircrack-ng · Wireshark', start:2019, end:2021, depth:6, active:false, decay:0.2, note:'wifi hacking at 14'},
+      {name:'BIOS · GRUB · dualboot',  start:2018,   end:2023,   depth:6,  active:false, decay:0.2, note:'age 13'},
+      {name:'Arch Linux',              start:2022,   end:2026.4, depth:9,  active:true,  note:'age 17'},
+      {name:'Bash scripting',          start:2018,   end:2026.4, depth:8,  active:true},
+      {name:'Docker / docker-compose', start:2022,   end:2026.4, depth:9,  active:true},
+      {name:'Kubernetes / ArgoCD',     start:2025,   end:2026.4, depth:7,  active:true},
+      {name:'Terraform · CI/CD',       start:2025,   end:2026.4, depth:6,  active:true},
+      {name:'MicroPython · ESP32 · MQTT', start:2025, end:2026.4, depth:6, active:true, note:'IoT temp sensor node · university network'},
+      {name:'GNOME Shell (JavaScript)', start:2017, end:2026.4, depth:5, active:true, note:'hidetopbar extension · 342 commits · 11 years'},
+    ]
+  },
+  {
+    name: 'AI / ML Core', color: '#FEE440',
+    skills: [
+      {name:'PyTorch',                   start:2021, end:2026.4, depth:10, active:true},
+      {name:'TensorFlow',                start:2021, end:2023,   depth:7,  active:false, decay:0.1, note:'compiled from source'},
+      {name:'NumPy · Pandas · Scikit-learn', start:2021, end:2026.4, depth:9, active:true},
+      {name:'Model training & fine-tuning', start:2021, end:2026.4, depth:9, active:true},
+      {name:'Perceiver architecture',    start:2021,   end:2023,   depth:7,  active:false, decay:0.2, note:'PyPI-published implementation of DeepMind Perceiver (Jaegle 2021)'},
+      {name:'XGBoost · sklearn ensembles', start:2021, end:2026.4, depth:7, active:true},
+      {name:'llama.cpp · local inference', start:2023, end:2026.4, depth:8, active:true, note:'1,910 commits · C++ Python bindings · edge LLM deployment'},
+      {name:'GRPO / R1-style fine-tuning', start:2026, end:2026.4, depth:8, active:true, note:'Unsloth · TRL · 4-bit LoRA · Glaive dataset'},
+      {name:'Geospatial ML · Clay MAE',  start:2025,   end:2026.4, depth:6,  active:true, note:'ship detection · Sentinel-2 satellite imagery · Copernicus'},
+      {name:'InsightFace · face-swap',   start:2023,   end:2024,   depth:7,  active:false, decay:0.05, note:'ONNX GPU · Rope project'},
+      {name:'MediaPipe · on-device CV',  start:2024,   end:2026.4, depth:7,  active:true, note:'yoga pose classifier · gesture + pose · home automation'},
+      {name:'VLM fine-tuning (Qwen3-VL-8B)', start:2026, end:2026.4, depth:7, active:true, note:'DocILE benchmark · 55.09% KILE · LoRA on RunPod'},
+      {name:'Vision agent (LangGraph+Gemini)', start:2025.6, end:2026.4, depth:7, active:true, note:'autonomous game-playing via screenshot + GUI automation'},
+      {name:'Hybrid AR+diffusion research', start:2025.85, end:2026.4, depth:8, active:true, note:'SmolLM3 + diffusion head · bidirectional attention on JSON · SOTA function calling'},
+      {name:'YOLO / object detection',   start:2022,   end:2026.4, depth:7, active:true, note:'YOLOv8 car part detection · ez360 automotive CV · beat_docile'},
+    ]
+  },
+  {
+    name: 'Generative AI', color: '#FF6B6B',
+    skills: [
+      {name:'Stable Diffusion (★593)',   start:2022.6, end:2025,   depth:10, active:false, decay:0.3, note:'600 GitHub stars · artroom-gpu-server 792 commits + artroom-frontend 532 commits'},
+      {name:'Diffusion models',          start:2022,   end:2026.4, depth:9,  active:true},
+      {name:'LoRA / Dreambooth',         start:2022.8, end:2026.4, depth:9,  active:true},
+      {name:'FLUX.1 fine-tuning',        start:2024,   end:2025,   depth:8,  active:false, decay:0.25},
+      {name:'DPO / RLHF alignment',      start:2024,   end:2026.4, depth:7,  active:true},
+    ]
+  },
+  {
+    name: 'Voice & Speech AI', color: '#BD93F9',
+    skills: [
+      {name:'Tacotron 2 · TTS (★55)',          start:2022,   end:2023.5, depth:8, active:false, decay:0.15, note:'multilingual voice cloning'},
+      {name:'OpenAI Whisper',                  start:2024,   end:2026.4, depth:7, active:true},
+      {name:'Custom multilingual C++ TTS',     start:2024,   end:2025,   depth:7, active:false, decay:0.2, note:'intra-sentence language switching'},
+    ]
+  },
+  {
+    name: 'Inference & CUDA Optimization', color: '#4CC9F0',
+    skills: [
+      {name:'CUDA programming',          start:2022,   end:2026.4, depth:8,  active:true},
+      {name:'xformers · FlashAttention', start:2022,   end:2026.4, depth:9,  active:true},
+      {name:'INT8/FP16 quantization',    start:2022,   end:2026.4, depth:8,  active:true},
+      {name:'TensorRT',                  start:2023,   end:2026.4, depth:7,  active:true},
+      {name:'PagedAttention · KV cache', start:2024,   end:2026.4, depth:8,  active:true},
+      {name:'vLLM',                      start:2025,   end:2026.4, depth:8,  active:true},
+      {name:'DeepSpeed · FSDP',          start:2024,   end:2026.4, depth:7,  active:true},
+      {name:'RunPod · cloud GPU infra',  start:2026,   end:2026.4, depth:6,  active:true, note:'VLM fine-tuning · beat_docile'},
+    ]
+  },
+  {
+    name: 'Backend & Cloud', color: '#F77F00',
+    skills: [
+      {name:'FastAPI',                   start:2022,   end:2026.4, depth:10, active:true},
+      {name:'Flask · Django',            start:2022,   end:2026.4, depth:7,  active:true},
+      {name:'REST APIs · OpenAPI',       start:2022,   end:2026.4, depth:9,  active:true},
+      {name:'AWS (EC2 · Lambda · S3)',   start:2022,   end:2026.4, depth:8,  active:true},
+      {name:'Redis',                     start:2022,   end:2026.4, depth:8,  active:true},
+      {name:'GCP / GKE',                 start:2024,   end:2026.4, depth:7,  active:true},
+      {name:'OAuth2 · JWT · SSO',        start:2025,   end:2026.4, depth:7,  active:true},
+      {name:'Kafka · RabbitMQ',          start:2023,   end:2026.4, depth:7,  active:true, note:'event-driven messaging · Rohlik MAIA pipeline'},
+      {name:'mem0 · OpenTelemetry',      start:2025,   end:2026.4, depth:7,  active:true, note:'AI memory layer + distributed tracing'},
+      {name:'LiteLLM · spaCy',           start:2026,   end:2026.4, depth:6,  active:true},
+      {name:'Elasticsearch · hybrid search', start:2024, end:2026.4, depth:8, active:true, note:'BM25 + reranker + semantic · Rohlik RAG pipeline'},
+      {name:'ElevenLabs · voice AI',     start:2025,   end:2026.4, depth:7,  active:true, note:'Maia Voice · 80% customer care automation target'},
+      {name:'Langfuse · LLM observability', start:2025, end:2026.4, depth:8, active:true},
+      {name:'Datadog · SLO monitoring',  start:2025,   end:2026.4, depth:6,  active:true},
+      {name:'Next.js · Supabase · Pinecone · DuckDB', start:2026, end:2026.4, depth:6, active:true, note:'zeus · MarzipanTech AI platform'},
+    ]
+  },
+  {
+    name: 'LLM Agents & RAG', color: '#06D6A0',
+    skills: [
+      {name:'LangChain',                 start:2024,   end:2026.4, depth:9,  active:true},
+      {name:'LangGraph (production)',    start:2025,   end:2026.4, depth:10, active:true, note:'Rohlik: 6K→24K users, 2× throughput'},
+      {name:'LlamaIndex',                start:2024,   end:2025.5, depth:7,  active:false, decay:0.2},
+      {name:'DSPy · prompt compilation', start:2025,   end:2026.4, depth:8,  active:true},
+      {name:'MCP · FastMCP',             start:2025.5, end:2026.4, depth:9,  active:true},
+      {name:'GraphRAG · Qdrant',         start:2026,   end:2026.4, depth:8,  active:true, note:'Vitreon Legal'},
+      {name:'Prompt engineering',        start:2024,   end:2026.4, depth:9,  active:true},
+      {name:'hermes-agent (NousResearch)', start:2025.6, end:2026.4, depth:8, active:true, note:'6,613 commits · self-improving AI · RL trajectory generation · multi-platform gateways'},
+      {name:'Paperclip AI OS',           start:2026.2, end:2026.4, depth:8,  active:true, note:'2,421 commits · MCP server + plugin ecosystem · TypeScript monorepo'},
+    ]
+  },
+  {
+    name: 'Native & Systems Languages', color: '#C084FC',
+    skills: [
+      {name:'Swift · macOS apps',   start:2023,  end:2026.4, depth:6,  active:true},
+      {name:'Rust',                  start:2026,  end:2026.4, depth:4,  active:true, note:'zeroclaw, openclaw'},
+      {name:'Flutter · Dart · Capacitor', start:2025, end:2026.4, depth:6, active:true, note:'cross-platform iOS/Android · fridge tracker + items manager'},
+      {name:'Arduino · embedded C++', start:2024,  end:2026.4, depth:5,  active:true, note:'maze-solving robot · hardware UI'},
+    ]
+  },
+];
+
+const MILESTONES = [
+  {year:2015.5, label:'Hello World'},
+  {year:2017.75,label:'First CNN (age 12)'},
+  {year:2017.0, label:'Coding school'},
+  {year:2019.2, label:'Kali / WiFi hacking'},
+  {year:2020.6, label:'Python & AI'},
+  {year:2022.4, label:'Voice ✤55'},
+  {year:2022.75,label:'SD ✤593'},
+  {year:2022.83,label:'artroom.ai'},
+  {year:2025.55,label:'hermes-agent 6K★'},
+  {year:2025.9, label:'Rohlik'},
+  {year:2025.95,label:'MarzipanTech'},
+  {year:2026.2, label:'Paperclip AI OS'},
+  {year:2026.32,label:'ARLC 0.920'},
+];
+
+// ── layout constants ──────────────────────────────────────────────────────────
+const LABEL_W  = 230;
+const ROW_H    = 26;
+const ROW_GAP  = 4;
+const CAT_PRE  = 16;   // space before category header
+const CAT_H    = 28;   // category header height
+const CAT_POST = 6;    // space after header before first skill
+const RIGHT_PAD = 60;
+const TOP_PAD  = 50;   // axis
+const CHART_W  = 1440;
+const NOW      = 2026.42;  // May 2026
+
+// compute total height
+let totalH = TOP_PAD;
+CATS.forEach((c,ci)=>{
+  if(ci>0) totalH += CAT_PRE;
+  totalH += CAT_H + CAT_POST;
+  totalH += c.skills.length * (ROW_H + ROW_GAP);
+});
+totalH += 40; // bottom padding
+
+const chartInnerW = CHART_W - LABEL_W - RIGHT_PAD;
+
+const DECAY_HALF_LIFE = 1.8; // years
+function currentDepth(s) {
+  if (s.active) return s.depth;
+  const floor = (s.decay ?? 0) * s.depth;
+  const t = NOW - s.end;
+  return floor + (s.depth - floor) * Math.exp(-t * Math.LN2 / DECAY_HALF_LIFE);
+}
+
+// ── svg ───────────────────────────────────────────────────────────────────────
+const svg = d3.select('#chart')
+  .attr('width',  CHART_W)
+  .attr('height', totalH);
+
+const defs = svg.append('defs');
+
+// ── x scale ───────────────────────────────────────────────────────────────────
+const xSc = d3.scaleLinear()
+  .domain([2015, NOW + 0.1])
+  .range([LABEL_W, LABEL_W + chartInnerW]);
+
+// per-domain gradient defs
+function makeGradId(color, active){ return 'g_'+color.replace('#','')+'_'+(active?'1':'0'); }
+
+const gradDefs = new Set();
+CATS.forEach(c=>{
+  c.skills.forEach(s=>{
+    const id = makeGradId(c.color, s.active);
+    if(!gradDefs.has(id)){
+      gradDefs.add(id);
+      const grad = defs.append('linearGradient')
+        .attr('id', id).attr('x1','0%').attr('x2','100%').attr('y1','0%').attr('y2','0%');
+      grad.append('stop').attr('offset','0%')
+        .attr('stop-color', c.color).attr('stop-opacity', 0.07);
+      grad.append('stop').attr('offset','100%')
+        .attr('stop-color', c.color)
+        .attr('stop-opacity', s.active ? (s.depth / 10) * 0.88 : 0.28);
+    }
+  });
+});
+
+// decay tail gradients (color → transparent, one per category)
+const decayGradSet = new Set();
+CATS.forEach(c=>{
+  const id = `dt_${c.color.replace('#','')}`;
+  if(!decayGradSet.has(id)){
+    decayGradSet.add(id);
+    const tg = defs.append('linearGradient')
+      .attr('id',id).attr('x1','0%').attr('x2','100%').attr('y1','0%').attr('y2','0%');
+    tg.append('stop').attr('offset','0%').attr('stop-color',c.color).attr('stop-opacity','1');
+    tg.append('stop').attr('offset','100%').attr('stop-color',c.color).attr('stop-opacity','0');
+  }
+});
+
+// ── axis / grid ───────────────────────────────────────────────────────────────
+const axisG = svg.append('g');
+const axYears = d3.range(2015, 2027);
+
+axYears.forEach(yr=>{
+  const x = xSc(yr);
+  axisG.append('line')
+    .attr('class','axis-line')
+    .attr('x1',x).attr('x2',x).attr('y1',TOP_PAD-10).attr('y2',totalH-20);
+  axisG.append('text')
+    .attr('class','axis-text')
+    .attr('x',x).attr('y',TOP_PAD-16)
+    .attr('text-anchor','middle')
+    .text(yr);
+});
+
+// "now" line
+axisG.append('line').attr('class','now-line')
+  .attr('x1',xSc(NOW)).attr('x2',xSc(NOW))
+  .attr('y1',TOP_PAD-10).attr('y2',totalH-20);
+axisG.append('text').attr('class','now-label')
+  .attr('x',xSc(NOW)+5).attr('y',TOP_PAD-16)
+  .text('now');
+
+// milestone lines
+MILESTONES.forEach(m=>{
+  const x=xSc(m.year);
+  axisG.append('line').attr('class','ms-line')
+    .attr('x1',x).attr('x2',x).attr('y1',TOP_PAD).attr('y2',totalH-20);
+});
+
+// ── bars ──────────────────────────────────────────────────────────────────────
+const barsG  = svg.append('g');
+const labelsG = svg.append('g');
+const tt = document.getElementById('tt');
+
+let curY = TOP_PAD + 6;
+
+CATS.forEach((c, ci)=>{
+  if(ci > 0) curY += CAT_PRE;
+
+  // category header
+  const hx = LABEL_W;
+  barsG.append('rect')
+    .attr('x', hx).attr('y', curY)
+    .attr('width', chartInnerW).attr('height', CAT_H)
+    .attr('fill', c.color).attr('fill-opacity', 0.07)
+    .attr('rx', 4);
+
+  barsG.append('rect')
+    .attr('x', hx).attr('y', curY)
+    .attr('width', 3).attr('height', CAT_H)
+    .attr('fill', c.color).attr('fill-opacity', 0.8)
+    .attr('rx', 1.5);
+
+  labelsG.append('text')
+    .attr('class','cat-label')
+    .attr('x', 0).attr('y', curY + CAT_H / 2 + 5)
+    .attr('fill', c.color)
+    .text(c.name);
+
+  curY += CAT_H + CAT_POST;
+
+  c.skills.forEach(s=>{
+    const x0 = xSc(s.start);
+    const x1 = Math.min(xSc(Math.min(s.end, NOW + 0.05)), xSc(NOW + 0.05));
+    const barW = Math.max(x1 - x0, 4);
+    const gradId = makeGradId(c.color, s.active);
+    const cy = curY + ROW_H / 2;
+
+    // background track
+    barsG.append('rect')
+      .attr('x', LABEL_W).attr('y', curY)
+      .attr('width', chartInnerW).attr('height', ROW_H)
+      .attr('fill', 'rgba(255,255,255,0.015)').attr('rx', 3);
+
+    // skill bar
+    const bar = barsG.append('rect')
+      .attr('x', x0).attr('y', curY + 2)
+      .attr('width', barW).attr('height', ROW_H - 4)
+      .attr('fill', `url(#${gradId})`).attr('rx', 4)
+      .style('cursor', 'pointer');
+
+    // active glow cap on right edge
+    if(s.active){
+      barsG.append('rect')
+        .attr('x', x1 - 3).attr('y', curY + 2)
+        .attr('width', 3).attr('height', ROW_H - 4)
+        .attr('fill', c.color).attr('fill-opacity', 0.7)
+        .attr('rx', 1);
+    }
+
+    // decay tail: fading strip after end for inactive skills with residual retention
+    if(!s.active && (s.decay ?? 0) > 0){
+      const tailX0 = xSc(s.end);
+      const tailX1 = Math.min(xSc(s.end + 2.5), xSc(NOW));
+      if(tailX1 > tailX0 + 3){
+        barsG.append('rect')
+          .attr('x', tailX0).attr('y', curY + 5)
+          .attr('width', tailX1 - tailX0).attr('height', ROW_H - 10)
+          .attr('fill', `url(#dt_${c.color.replace('#','')})`)
+          .attr('fill-opacity', s.decay * 0.55)
+          .attr('rx', 2);
+      }
+    }
+
+    // skill name
+    const isActive = s.active;
+    labelsG.append('text')
+      .attr('class', 'skill-label' + (isActive ? ' active' : ''))
+      .attr('x', LABEL_W - 10).attr('y', cy + 5)
+      .attr('text-anchor','end')
+      .text(s.name);
+
+    // depth indicator dots — filled = retained, dim = faded, empty = never
+    const effDepth = Math.round(currentDepth(s));
+    const dotStartX = 4;
+    for(let i=0; i<10; i++){
+      let fill, opacity;
+      if(i < effDepth){
+        fill = c.color; opacity = isActive ? 0.72 : 0.45;       // retained
+      } else if(i < s.depth){
+        fill = c.color; opacity = 0.1;                           // faded — once knew
+      } else {
+        fill = 'rgba(255,255,255,0.05)'; opacity = 1;            // never reached
+      }
+      labelsG.append('rect')
+        .attr('x', dotStartX + i*8).attr('y', cy - 3)
+        .attr('width', 5).attr('height', 5).attr('rx', 1.5)
+        .attr('fill', fill)
+        .attr('fill-opacity', opacity);
+    }
+
+    // tooltip
+    [bar].forEach(el => {
+      el.on('mousemove', function(ev){
+        const dur = s.end >= NOW ? `${Math.floor(s.start)} → now` : `${Math.floor(s.start)} → ${Math.floor(s.end)}`;
+        const yrs = Math.round((Math.min(s.end, NOW) - s.start) * 10) / 10;
+        tt.style.opacity = '1';
+        tt.style.left = (ev.clientX + 16) + 'px';
+        tt.style.top  = (ev.clientY - 20) + 'px';
+        tt.innerHTML = `<div class="tt-name" style="color:${c.color}">${s.name}</div>
+          <div class="tt-meta">${dur} &nbsp;·&nbsp; ${yrs}y &nbsp;·&nbsp; depth ${s.depth}/10</div>
+          ${s.note ? `<div class="tt-note">${s.note}</div>` : ''}`;
+      })
+      .on('mouseleave', ()=>{ tt.style.opacity = '0'; });
+    });
+
+    curY += ROW_H + ROW_GAP;
+  });
+});
+
+// milestone labels along the top axis area
+MILESTONES.forEach((m, i)=>{
+  const x = xSc(m.year);
+  axisG.append('text').attr('class','ms-label')
+    .attr('x', x + 4)
+    .attr('y', TOP_PAD + 14 + (i % 2) * 13)
+    .text(m.label);
+});
+</script>
+</body>
+</html>

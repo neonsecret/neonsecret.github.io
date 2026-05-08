@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>neonsecret · a decade in code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;min-height:100vh}
+body{
+  background:#06070f;
+  background-image:radial-gradient(ellipse 200% 80% at 50% -5%, #1c1040 0%, #06070f 60%);
+  color:#d4d6f0;
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  display:flex;flex-direction:column;align-items:center;
+  padding:80px 40px 100px;
+}
+
+/* ── hero ── */
+.hero{text-align:center;max-width:680px;margin-bottom:72px}
+.eyebrow{
+  font-size:12px;letter-spacing:0.14em;text-transform:uppercase;
+  color:#5a5c78;margin-bottom:20px;font-weight:400;
+}
+h1{
+  font-size:clamp(42px,6vw,72px);font-weight:700;letter-spacing:-0.04em;line-height:0.95;
+  background:linear-gradient(125deg,#9B5DE5 0%,#F15BB5 25%,#FEE440 55%,#06D6A0 85%,#4CC9F0 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:24px;
+}
+.hero-sub{
+  font-size:17px;color:#6b6d86;line-height:1.7;font-weight:300;
+}
+.hero-meta{
+  margin-top:20px;display:flex;justify-content:center;gap:24px;flex-wrap:wrap;
+  font-size:13px;color:#4a4c6a;
+}
+.hero-meta a{color:#6b6d86;text-decoration:none;border-bottom:1px dotted #4a4c6a;transition:color 0.15s}
+.hero-meta a:hover{color:#d4d6f0}
+
+/* ── cards ── */
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:24px;width:100%;max-width:900px;margin-bottom:64px}
+@media(max-width:640px){.cards{grid-template-columns:1fr}}
+.card{
+  display:block;text-decoration:none;
+  border:1px solid rgba(255,255,255,0.07);border-radius:16px;
+  padding:36px 32px;
+  background:linear-gradient(145deg,rgba(255,255,255,0.03) 0%,rgba(255,255,255,0) 100%);
+  transition:border-color 0.2s,transform 0.2s,box-shadow 0.2s;
+  position:relative;overflow:hidden;
+}
+.card::before{
+  content:'';position:absolute;inset:0;border-radius:16px;
+  background:var(--card-glow);opacity:0;transition:opacity 0.3s;
+}
+.card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,0.16)}
+.card:hover::before{opacity:1}
+.card:hover .card-arrow{transform:translate(3px,-3px)}
+.card--stream{--card-glow:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(155,93,229,0.12),transparent)}
+.card--timeline{--card-glow:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(6,214,160,0.1),transparent)}
+.card-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:11px;letter-spacing:0.1em;text-transform:uppercase;font-weight:500;
+  border:1px solid;border-radius:20px;padding:4px 12px;margin-bottom:20px;
+}
+.card--stream .card-badge{color:#9B5DE5;border-color:rgba(155,93,229,0.4)}
+.card--timeline .card-badge{color:#06D6A0;border-color:rgba(6,214,160,0.35)}
+.card-title{font-size:26px;font-weight:600;letter-spacing:-0.02em;color:#e8e9f3;margin-bottom:12px;display:flex;align-items:flex-start;justify-content:space-between}
+.card-arrow{font-size:20px;color:#4a4c6a;transition:transform 0.2s;margin-left:8px;flex-shrink:0}
+.card-desc{font-size:14px;color:#6b6d86;line-height:1.65;font-weight:300}
+.card-preview{
+  margin-top:24px;
+  border-radius:8px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,0.06);
+  background:rgba(0,0,0,0.3);
+  padding:14px 16px;
+  font-size:11px;font-family:'Space Grotesk',monospace;line-height:1.8;
+  color:#4a4c6a;letter-spacing:0.01em;
+}
+.card--stream .card-preview span{color:#9B5DE5}
+.card--timeline .card-preview span{color:#06D6A0}
+
+/* ── timeline strip ── */
+.strip{width:100%;max-width:900px;margin-bottom:64px}
+.strip-title{font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#4a4c6a;margin-bottom:20px}
+.strip-track{position:relative;height:6px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:visible}
+.strip-track::after{
+  content:'';position:absolute;right:0;top:0;bottom:0;width:3px;
+  background:rgba(255,255,255,0.3);border-radius:99px;
+}
+.strip-segment{position:absolute;top:0;height:100%;border-radius:99px}
+.strip-labels{display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:#3e405a}
+
+/* ── skills cloud ── */
+.tags{display:flex;flex-wrap:wrap;gap:8px;max-width:900px;justify-content:center;margin-bottom:64px}
+.tag{
+  font-size:12px;padding:6px 14px;border-radius:20px;
+  border:1px solid;transition:opacity 0.15s;cursor:default;
+}
+
+/* ── footer ── */
+.footer{font-size:13px;color:#3e405a;text-align:center;line-height:1.8}
+.footer a{color:#5a5c78;text-decoration:none;border-bottom:1px dotted #3e405a}
+.footer a:hover{color:#9b9db8}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">viacheslav ivannikov · neonsecret</div>
+  <h1>a decade<br>in code</h1>
+  <p class="hero-sub">
+    From a C++ hello-world at 10 to production LLM agents serving 24&thinsp;000 users.
+    Two views of 11 years across 10 technical domains.
+  </p>
+  <div class="hero-meta">
+    <a href="https://github.com/neonsecret">github.com/neonsecret</a>
+    <span>born 2005 · Plzeň / Prague, CZ</span>
+    <span>879 GitHub stars</span>
+  </div>
+</div>
+
+<div class="cards" style="grid-template-columns:1fr 1fr">
+  <a class="card card--stream" href="streamgraph.html">
+    <div class="card-badge">view 01</div>
+    <div class="card-title">
+      Streamgraph
+      <span class="card-arrow">↗</span>
+    </div>
+    <p class="card-desc">
+      10 domain bands flowing over time. Thickness encodes activity.
+      Hover any band to isolate it and see intensity by year.
+    </p>
+    <div class="card-preview">
+<span>LLM agents</span> ·····╭──────────────╮
+<span>Inference</span>  ··╭───╯              ╰──
+<span>Python&ML</span>  ·╭╯··················────
+<span>Creative</span>   ╭──────╮
+    </div>
+  </a>
+
+  <a class="card card--timeline" href="timeline.html">
+    <div class="card-badge">view 02</div>
+    <div class="card-title">
+      Skill Timeline
+      <span class="card-arrow">↗</span>
+    </div>
+    <p class="card-desc">
+      55 individual skills as gradient bars. Depth indicator dots per skill. Milestone annotations.
+    </p>
+    <div class="card-preview">
+<span>Python</span>         ·········██████████████
+<span>PyTorch</span>        ············██████████
+<span>LangGraph</span>      ··················████
+<span>Blender 3D</span>     ·····██████·········
+    </div>
+  </a>
+
+  <a class="card" href="beeswarm.html" style="--card-glow:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(0,187,249,0.1),transparent);border-color:rgba(255,255,255,0.07)">
+    <div class="card-badge" style="color:#00BBF9;border-color:rgba(0,187,249,0.35)">view 03</div>
+    <div class="card-title">Skill Landscape <span class="card-arrow">↗</span></div>
+    <p class="card-desc">D3 force-simulation beeswarm. Skills as circles in swim lanes, pushed apart by physics. No overlap. Size = depth.</p>
+    <div class="card-preview" style="color:#4a4c6a">
+ ⬤ ⬤  ⬤   ⬤ ⬤        ← foundations
+    ⬤ ⬤  ⬤  ⬤          ← creative
+       ⬤   ⬤⬤ ⬤  ⬤⬤   ← AI/ML
+              ⬤⬤ ⬤⬤⬤⬤  ← agents
+    </div>
+  </a>
+
+  <a class="card" href="heatmap.html" style="--card-glow:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(254,228,64,0.08),transparent);border-color:rgba(255,255,255,0.07)">
+    <div class="card-badge" style="color:#FEE440;border-color:rgba(254,228,64,0.35)">view 04</div>
+    <div class="card-title">Intensity Heatmap <span class="card-arrow">↗</span></div>
+    <p class="card-desc">Skills × years grid. Color = domain, opacity = depth that year. The cleanest reading of breadth vs time.</p>
+    <div class="card-preview" style="color:#4a4c6a">
+        2016 2018 2020 2022 2024 2026
+C++      ░░░░ ████ ████ ████ ████ ████
+PyTorch            ░░░░ ████ ████ ████
+LangGraph                    ░░░░ ████
+Blender       ░░░░ ████ ████
+    </div>
+  </a>
+
+  <a class="card" href="radial.html" style="--card-glow:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(255,107,107,0.1),transparent);border-color:rgba(255,255,255,0.07)">
+    <div class="card-badge" style="color:#FF6B6B;border-color:rgba(255,107,107,0.35)">view 05</div>
+    <div class="card-title">Radial Clock <span class="card-arrow">↗</span></div>
+    <p class="card-desc">11 concentric rings, one per domain. Angle = time. Skills as arcs. Looks like a cosmic mandala.</p>
+    <div class="card-preview" style="color:#4a4c6a;font-size:10px">
+         ╭─────╮
+      ╭──┤  ●  ├──╮
+    ╭─┤  │     │  ├─╮
+    │ │  ╰──●──╯  │ │
+    ╰─┤     ●     ├─╯
+      ╰──────────╯
+    </div>
+  </a>
+
+  <a class="card" href="helix.html" style="--card-glow:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(76,201,240,0.1),transparent);border-color:rgba(255,255,255,0.07)">
+    <div class="card-badge" style="color:#4CC9F0;border-color:rgba(76,201,240,0.35)">view 06 · 3D</div>
+    <div class="card-title">3D Helix <span class="card-arrow">↗</span></div>
+    <p class="card-desc">Skills as glowing spheres along a rotating 3D helix. Time ascends the Y axis. Drag to rotate, hover to inspect. Built with Three.js.</p>
+  </a>
+
+  <a class="card" href="gradient.html" style="--card-glow:radial-gradient(ellipse 80% 60% at 50% 100%,rgba(0,245,212,0.1),transparent);border-color:rgba(255,255,255,0.07);grid-column:span 2">
+    <div class="card-badge" style="color:#00F5D4;border-color:rgba(0,245,212,0.35)">view 07 · new</div>
+    <div class="card-title">Gradient Field <span class="card-arrow">↗</span></div>
+    <p class="card-desc">
+      Vertical canvas: x = domain spectrum (systems → AI), y = time 2015→2026.
+      Color intensity = activity depth. Adjacent domains blend. Gaussian blur creates a living thermal signature of an entire career.
+    </p>
+  </a>
+</div>
+
+<!-- career strip -->
+<div class="strip">
+  <div class="strip-title">career arc</div>
+  <div class="strip-track" id="strip"></div>
+  <div class="strip-labels">
+    <span>2015</span><span>2017</span><span>2019</span><span>2021</span><span>2023</span><span>2025</span><span>now</span>
+  </div>
+</div>
+
+<!-- skills cloud -->
+<div class="tags" id="tags"></div>
+
+<div class="footer">
+  <a href="streamgraph.html">streamgraph</a> &nbsp;·&nbsp;
+  <a href="timeline.html">skill timeline</a> &nbsp;·&nbsp;
+  <a href="https://github.com/neonsecret">github</a> &nbsp;·&nbsp;
+  <a href="https://linkedin.com/in/viacheslav-ivannikov-9a3882279">linkedin</a>
+  <br><br>
+  Rohlik Group AI Engineer · Vitreon Legal founder · NeurIPS 2026 (AR+diffusion) · B.Sc. AI & Automation (UWB Plzeň)
+</div>
+
+<script>
+// career strip segments
+const STRIP = [
+  {label:'Coding school',  start:2017,   end:2020,   color:'#9B5DE5'},
+  {label:'AI begins',      start:2020,   end:2022,   color:'#FEE440'},
+  {label:'Stable Diffusion era', start:2022, end:2023, color:'#FF6B6B'},
+  {label:'artroom.ai',     start:2022,   end:2025.9, color:'#4CC9F0'},
+  {label:'EZ360',          start:2022,   end:2023.3, color:'#00F5D4'},
+  {label:'Upwork',         start:2023.3, end:2025.8, color:'#F77F00'},
+  {label:'B.Sc. AI & Auto',start:2022,   end:2025.6, color:'#BD93F9'},
+  {label:'hermes-agent',   start:2025.55,end:2026.4, color:'#06D6A0'},
+  {label:'Rohlik Group',   start:2025.9, end:2026.42,color:'#4CC9F0'},
+  {label:'MarzipanTech',   start:2025.95,end:2026.42,color:'#F77F00'},
+  {label:'Paperclip AI OS',start:2026.2, end:2026.42,color:'#BD93F9'},
+  {label:'Vitreon Legal',  start:2026.25,end:2026.42,color:'#F15BB5'},
+];
+const Y0=2015, Y1=2026.42, range=Y1-Y0;
+const strip=document.getElementById('strip');
+STRIP.forEach(s=>{
+  const el=document.createElement('div');
+  el.className='strip-segment';
+  el.style.left=((s.start-Y0)/range*100)+'%';
+  el.style.width=((s.end-s.start)/range*100)+'%';
+  el.style.background=s.color;
+  el.style.opacity='0.7';
+  el.title=s.label;
+  strip.appendChild(el);
+});
+
+// skills cloud
+const SKILLS = [
+  ['Python','#FEE440'],['PyTorch','#FEE440'],['C++','#9B5DE5'],
+  ['LangGraph','#06D6A0'],['LangChain','#06D6A0'],['FastAPI','#F77F00'],
+  ['Stable Diffusion','#FF6B6B'],['FLUX.1','#FF6B6B'],['LoRA','#FF6B6B'],
+  ['CUDA','#4CC9F0'],['FlashAttention','#4CC9F0'],['vLLM','#4CC9F0'],
+  ['Docker','#00F5D4'],['Kubernetes','#00F5D4'],['Arch Linux','#00F5D4'],
+  ['React','#00BBF9'],['TypeScript','#00BBF9'],['AWS','#F77F00'],
+  ['Redis','#F77F00'],['GraphRAG','#06D6A0'],['MCP','#06D6A0'],
+  ['DSPy','#06D6A0'],['Blender 3D','#F15BB5'],['After Effects','#F15BB5'],
+  ['Tacotron 2','#BD93F9'],['Whisper','#BD93F9'],
+  ['TensorRT','#4CC9F0'],['DeepSpeed','#4CC9F0'],
+  ['Rust','#9B5DE5'],['Swift','#C084FC'],['Aircrack-ng','#00F5D4'],
+  ['Elasticsearch','#F77F00'],['ElevenLabs','#06D6A0'],['Langfuse','#4CC9F0'],
+  ['Datadog','#F77F00'],['pgvector','#06D6A0'],['MediaPipe','#FEE440'],
+  ['RunPod','#4CC9F0'],['Pinecone','#9B5DE5'],['DuckDB','#F15BB5'],
+  ['Next.js','#00BBF9'],['Supabase','#06D6A0'],['YOLO','#FF6B6B'],
+  ['Cinema 4D','#F15BB5'],['LLM-as-judge','#06D6A0'],['AR+diffusion','#4CC9F0'],
+  ['Stripe','#F77F00'],['Playwright','#00BBF9'],['EZ360 CV','#FF6B6B'],
+  ['llama.cpp','#4CC9F0'],['Flutter/Dart','#C084FC'],['Arduino','#9B5DE5'],
+  ['MicroPython','#00F5D4'],['Kafka','#F77F00'],['RabbitMQ','#F77F00'],
+  ['mem0','#06D6A0'],['Perceiver','#FEE440'],['GRPO/R1','#FEE440'],
+  ['Geospatial ML','#FEE440'],['InsightFace','#FF6B6B'],['Unsloth','#FEE440'],
+  ['OpenTelemetry','#4CC9F0'],['spaCy','#06D6A0'],['Capacitor','#C084FC'],
+];
+const tagsEl=document.getElementById('tags');
+SKILLS.forEach(([name,color])=>{
+  const el=document.createElement('div');
+  el.className='tag';
+  el.textContent=name;
+  el.style.color=color;
+  const r=parseInt(color.slice(1,3),16),
+        g=parseInt(color.slice(3,5),16),
+        b=parseInt(color.slice(5,7),16);
+  el.style.borderColor=`rgba(${r},${g},${b},0.28)`;
+  el.style.background=`rgba(${r},${g},${b},0.07)`;
+  tagsEl.appendChild(el);
+});
+</script>
+</body>
+</html>

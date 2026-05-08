@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>a decade in code · gradient field</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#06070f;width:100%;overflow-x:hidden}
+body{
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  color:#d4d6f0;
+  padding:56px 48px 80px;
+  background:radial-gradient(ellipse 160% 50% at 50% -5%,#1c1040 0%,#06070f 55%);
+}
+.back{
+  display:inline-flex;align-items:center;gap:6px;
+  color:#6b6d86;font-size:13px;text-decoration:none;
+  border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:6px 14px;
+  margin-bottom:28px;transition:color .15s,border-color .15s;
+}
+.back:hover{color:#d4d6f0;border-color:rgba(255,255,255,0.18)}
+h1{
+  font-size:48px;font-weight:600;letter-spacing:-0.03em;line-height:1;
+  background:linear-gradient(120deg,#00F5D4 0%,#9B5DE5 30%,#FEE440 65%,#06D6A0 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:12px;
+}
+.subtitle{font-size:15px;color:#6b6d86;margin-bottom:40px;font-weight:300}
+.wrap{position:relative;display:inline-block}
+canvas{display:block}
+#overlay{position:absolute;top:0;left:0;pointer-events:none}
+.tooltip{
+  position:fixed;background:rgba(6,7,15,.96);
+  border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(24px);
+  border-radius:10px;padding:10px 14px;font-size:13px;line-height:1.55;
+  pointer-events:none;opacity:0;transition:opacity .12s;z-index:99;
+}
+.tt-name{font-weight:500;font-size:14px;margin-bottom:4px}
+.tt-meta{color:#8a8caa}
+.footer{margin-top:44px;font-size:13px;color:#404258}
+.footer a{color:#5a5c78;text-decoration:none;border-bottom:1px dotted #404258}
+.footer a:hover{color:#9b9db8}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← overview</a>
+<h1>gradient field</h1>
+<p class="subtitle">
+  x axis: domain spectrum — systems → AI &nbsp;·&nbsp;
+  y axis: time 2015 → 2026 &nbsp;·&nbsp;
+  color intensity: activity depth
+</p>
+
+<div style="position:relative;display:inline-block">
+  <div class="wrap" id="wrap">
+    <canvas id="base"></canvas>
+    <svg id="overlay"></svg>
+  </div>
+  <div id="legend" style="
+    position:absolute;top:16px;right:-160px;width:148px;
+    background:rgba(6,7,15,0.7);border:1px solid rgba(255,255,255,0.06);
+    border-radius:8px;padding:10px 12px;backdrop-filter:blur(12px);
+    font-family:'Space Grotesk',system-ui;font-size:11px;color:#5a5c78;
+    line-height:1.9;
+  "></div>
+</div>
+<div class="tooltip" id="tt"></div>
+
+<div class="footer">
+  <a href="streamgraph.html">streamgraph</a> ·
+  <a href="timeline.html">timeline</a> ·
+  <a href="beeswarm.html">beeswarm</a> ·
+  <a href="heatmap.html">heatmap</a> ·
+  <a href="radial.html">radial</a> ·
+  <a href="helix.html">3D helix</a>
+</div>
+
+<script>
+// ── domain axis (left = systems, right = frontier AI) ──────────────────────
+const DOMAINS = [
+  {key:'linux',    name:'Systems & Security',  color:'#00F5D4'},
+  {key:'foundations',name:'Prog. Foundations', color:'#9B5DE5'},
+  {key:'creative', name:'Design & Creative',   color:'#F15BB5'},
+  {key:'web',      name:'Web & Frontend',      color:'#00BBF9'},
+  {key:'backend',  name:'Backend & Cloud',     color:'#F77F00'},
+  {key:'voice',    name:'Voice & Speech',      color:'#BD93F9'},
+  {key:'aiml',     name:'AI / ML Core',        color:'#FEE440'},
+  {key:'genai',    name:'Generative AI',       color:'#FF6B6B'},
+  {key:'cuda',     name:'Inference & CUDA',    color:'#4CC9F0'},
+  {key:'agents',   name:'LLM Agents & RAG',   color:'#06D6A0'},
+  {key:'native',   name:'Native & Systems',    color:'#C084FC'},
+];
+
+const SKILLS = [
+  {name:'C++',domain:'foundations',start:2015,end:2026.4,depth:8},
+  {name:'Python',domain:'foundations',start:2020,end:2026.4,depth:10},
+  {name:'Java',domain:'foundations',start:2017,end:2021,depth:6,decay:0},
+  {name:'Algorithms & DSA',domain:'foundations',start:2017,end:2026.4,depth:8},
+  {name:'Node graphs / visual prog',domain:'foundations',start:2016,end:2022,depth:6,decay:0.15},
+  {name:'CNN / early ML',domain:'foundations',start:2017,end:2020,depth:4,decay:0.2},
+  {name:'Competitive programming',domain:'foundations',start:2019,end:2022,depth:7,decay:0.25},
+  {name:'Photoshop / GIMP',domain:'creative',start:2017,end:2022,depth:7,decay:0.25},
+  {name:'After Effects / Video editing',domain:'creative',start:2018,end:2022.5,depth:7,decay:0.1},
+  {name:'Blender & 3D rendering',domain:'creative',start:2019,end:2022.5,depth:8,decay:0.15},
+  {name:'Cinema 4D',domain:'creative',start:2019,end:2022,depth:5,decay:0.05},
+  {name:'Drone + DaVinci Resolve',domain:'creative',start:2023,end:2024.5,depth:6,decay:0.1},
+  {name:'HTML / CSS',domain:'web',start:2017,end:2026.4,depth:7},
+  {name:'JavaScript',domain:'web',start:2017,end:2026.4,depth:8},
+  {name:'React',domain:'web',start:2022,end:2026.4,depth:7},
+  {name:'TypeScript',domain:'web',start:2024,end:2026.4,depth:7},
+  {name:'Node.js',domain:'web',start:2022,end:2026.4,depth:6},
+  {name:'Kali Linux · aircrack-ng',domain:'linux',start:2019,end:2021,depth:6,decay:0.2},
+  {name:'BIOS · GRUB · dualboot',domain:'linux',start:2018,end:2023,depth:6,decay:0.2},
+  {name:'Arch Linux',domain:'linux',start:2022,end:2026.4,depth:9},
+  {name:'Bash scripting',domain:'linux',start:2018,end:2026.4,depth:8},
+  {name:'Docker / docker-compose',domain:'linux',start:2022,end:2026.4,depth:9},
+  {name:'Kubernetes / ArgoCD',domain:'linux',start:2025,end:2026.4,depth:7},
+  {name:'PyTorch',domain:'aiml',start:2021,end:2026.4,depth:10},
+  {name:'TensorFlow',domain:'aiml',start:2021,end:2023,depth:7,decay:0.1},
+  {name:'NumPy · Pandas · sklearn',domain:'aiml',start:2021,end:2026.4,depth:9},
+  {name:'Model training & fine-tuning',domain:'aiml',start:2021,end:2026.4,depth:9},
+  {name:'YOLO / object detection',domain:'aiml',start:2022,end:2026.4,depth:7},
+  {name:'Hybrid AR+diffusion (NeurIPS)',domain:'aiml',start:2025.85,end:2026.4,depth:8},
+  {name:'Stable Diffusion (★593)',domain:'genai',start:2022.6,end:2025,depth:10,decay:0.3},
+  {name:'Diffusion models',domain:'genai',start:2022,end:2026.4,depth:9},
+  {name:'LoRA / Dreambooth',domain:'genai',start:2022.8,end:2026.4,depth:9},
+  {name:'FLUX.1 fine-tuning',domain:'genai',start:2024,end:2025,depth:8,decay:0.25},
+  {name:'DPO / RLHF alignment',domain:'genai',start:2024,end:2026.4,depth:7},
+  {name:'Tacotron 2 · TTS (★55)',domain:'voice',start:2022,end:2023.5,depth:8,decay:0.15},
+  {name:'OpenAI Whisper',domain:'voice',start:2024,end:2026.4,depth:7},
+  {name:'Custom multilingual TTS',domain:'voice',start:2024,end:2025,depth:7,decay:0.2},
+  {name:'CUDA programming',domain:'cuda',start:2022,end:2026.4,depth:8},
+  {name:'xformers · FlashAttention',domain:'cuda',start:2022,end:2026.4,depth:9},
+  {name:'INT8/FP16 quantization',domain:'cuda',start:2022,end:2026.4,depth:8},
+  {name:'TensorRT',domain:'cuda',start:2023,end:2026.4,depth:7},
+  {name:'PagedAttention · KV cache',domain:'cuda',start:2024,end:2026.4,depth:8},
+  {name:'vLLM',domain:'cuda',start:2025,end:2026.4,depth:8},
+  {name:'DeepSpeed · FSDP',domain:'cuda',start:2024,end:2026.4,depth:7},
+  {name:'FastAPI',domain:'backend',start:2022,end:2026.4,depth:10},
+  {name:'Flask · Django',domain:'backend',start:2022,end:2026.4,depth:7},
+  {name:'AWS (EC2 · Lambda · S3)',domain:'backend',start:2022,end:2026.4,depth:8},
+  {name:'Redis',domain:'backend',start:2022,end:2026.4,depth:8},
+  {name:'GCP / GKE',domain:'backend',start:2024,end:2026.4,depth:7},
+  {name:'Elasticsearch · hybrid search',domain:'backend',start:2024,end:2026.4,depth:8},
+  {name:'Langfuse · observability',domain:'backend',start:2025,end:2026.4,depth:8},
+  {name:'ElevenLabs · voice AI',domain:'backend',start:2025,end:2026.4,depth:7},
+  {name:'LangChain',domain:'agents',start:2024,end:2026.4,depth:9},
+  {name:'LangGraph',domain:'agents',start:2025,end:2026.4,depth:10},
+  {name:'DSPy',domain:'agents',start:2025,end:2026.4,depth:8},
+  {name:'MCP · FastMCP',domain:'agents',start:2025.5,end:2026.4,depth:9},
+  {name:'GraphRAG · Qdrant',domain:'agents',start:2026,end:2026.4,depth:8},
+  {name:'Prompt engineering',domain:'agents',start:2024,end:2026.4,depth:9},
+  {name:'hermes-agent (NousResearch)',domain:'agents',start:2025.6,end:2026.4,depth:8},
+  {name:'Paperclip AI OS',domain:'agents',start:2026.2,end:2026.4,depth:8},
+  {name:'Swift · macOS apps',domain:'native',start:2023,end:2026.4,depth:6},
+  {name:'Rust',domain:'native',start:2026,end:2026.4,depth:4},
+  {name:'Flutter · Dart',domain:'native',start:2025,end:2026.4,depth:6},
+  {name:'Arduino · embedded C++',domain:'native',start:2024,end:2026.4,depth:5},
+  {name:'MicroPython · ESP32',domain:'linux',start:2025,end:2026.4,depth:6},
+  {name:'Kafka · RabbitMQ',domain:'backend',start:2023,end:2026.4,depth:7},
+  {name:'mem0 · OpenTelemetry',domain:'backend',start:2025,end:2026.4,depth:7},
+  {name:'Perceiver architecture',domain:'aiml',start:2021,end:2023,depth:7,decay:0.2},
+  {name:'llama.cpp · local inference',domain:'cuda',start:2023,end:2026.4,depth:8},
+  {name:'GRPO / R1-style fine-tuning',domain:'aiml',start:2026,end:2026.4,depth:8},
+  {name:'Geospatial ML · Clay MAE',domain:'aiml',start:2025,end:2026.4,depth:6},
+  {name:'InsightFace · face-swap',domain:'genai',start:2023,end:2024,depth:7,decay:0.05},
+  {name:'Vision agent (game-playing)',domain:'agents',start:2025.6,end:2026.4,depth:7},
+  {name:'Rohlik MAIA (1384 commits)',domain:'agents',start:2025.3,end:2026.3,depth:10},
+];
+
+const MILESTONES = [
+  {year:2015.5, label:'Hello World in C++'},
+  {year:2017.0, label:'Coding school'},
+  {year:2017.75,label:'First CNN (age 12)'},
+  {year:2019.2, label:'Kali Linux / hacking'},
+  {year:2020.6, label:'Python & AI begins'},
+  {year:2022.4, label:'Voice cloning ★55'},
+  {year:2022.75,label:'Stable Diffusion ★593'},
+  {year:2022.83,label:'Co-founder artroom.ai'},
+  {year:2025.55,label:'hermes-agent'},
+  {year:2025.9, label:'Rohlik AI Engineer'},
+  {year:2026.25,label:'NeurIPS 2026 paper'},
+];
+
+// ── layout ─────────────────────────────────────────────────────────────────
+const LEFT   = 72;    // year axis width
+const RIGHT  = 20;
+const TOP    = 16;    // small top padding (no labels)
+const BOT    = 24;
+const COL_W  = 96;    // px per domain column
+const TOTAL_W = LEFT + DOMAINS.length * COL_W + RIGHT;
+const Y_START = 2015, Y_END = 2026.5;
+const Y_RANGE = Y_END - Y_START;
+const DATA_H  = 820;
+const TOTAL_H = TOP + DATA_H + BOT;
+
+// intensity for domain at decimal year — includes ramp-in, full, and post-end decay
+const RAMP      = 0.5;   // ramp-in duration (years)
+const HALF_LIFE = 1.8;   // post-end decay half-life (years)
+
+function intensity(domKey, yr) {
+  let sum = 0;
+  for (const s of SKILLS) {
+    if (s.domain !== domKey) continue;
+    let val = 0;
+    const floor = (s.decay ?? 0) * s.depth;   // minimum retained depth after full decay
+
+    if (yr < s.start - RAMP) {
+      val = 0;
+    } else if (yr < s.start) {
+      val = s.depth * (yr - (s.start - RAMP)) / RAMP;
+    } else if (yr <= s.end) {
+      val = s.depth;
+    } else {
+      // exponential decay toward floor
+      const t = yr - s.end;
+      val = floor + (s.depth - floor) * Math.exp(-t * Math.LN2 / HALF_LIFE);
+    }
+    sum += Math.max(0, val);
+  }
+  return sum;
+}
+
+// precompute max across all domains and monthly samples
+let globalMax = 0;
+const STEP = 1/12;
+for (const d of DOMAINS) {
+  for (let yr = Y_START; yr <= Y_END; yr += STEP) {
+    const v = intensity(d.key, yr);
+    if (v > globalMax) globalMax = v;
+  }
+}
+
+// ── canvas: pixel-level Gaussian blending ────────────────────────────────
+const base = document.getElementById('base');
+base.width  = TOTAL_W;
+base.height = TOTAL_H;
+const ctx = base.getContext('2d');
+
+// Parse domain colors to float RGB
+const domRGB = DOMAINS.map(d => [
+  parseInt(d.color.slice(1,3),16) / 255,
+  parseInt(d.color.slice(3,5),16) / 255,
+  parseInt(d.color.slice(5,7),16) / 255,
+]);
+
+// Precompute Gaussian spatial weights for each domain at each x pixel
+// sigma = 1.1 × COL_W so adjacent domains blend nicely
+const SIGMA = COL_W * 1.0;
+const gWeights = DOMAINS.map((_, di) => {
+  const cx = LEFT + di * COL_W + COL_W * 0.5;
+  const w  = new Float32Array(TOTAL_W);
+  for (let x = 0; x < TOTAL_W; x++) {
+    const d = (x - cx) / SIGMA;
+    w[x] = Math.exp(-0.5 * d * d);
+  }
+  return w;
+});
+
+// Render pixel by pixel into ImageData
+const img  = ctx.createImageData(TOTAL_W, TOTAL_H);
+const data = img.data;
+
+// Fill background
+for (let i = 0; i < data.length; i += 4) {
+  data[i]=6; data[i+1]=7; data[i+2]=15; data[i+3]=255;
+}
+
+const SCALE = 0.72;   // max single-domain brightness at peak
+
+for (let row = 0; row < DATA_H; row++) {
+  const yr  = Y_START + (row / DATA_H) * Y_RANGE;
+  const py  = TOP + row;
+
+  // Intensities for all domains at this time point
+  const ints = new Float32Array(DOMAINS.length);
+  for (let di = 0; di < DOMAINS.length; di++) {
+    ints[di] = Math.min(1, intensity(DOMAINS[di].key, yr) / globalMax);
+  }
+
+  for (let px = 0; px < TOTAL_W; px++) {
+    // Screen compositing: C_out = 1 - ∏(1 - w_i × C_i)
+    let R = 0, G = 0, B = 0;
+    for (let di = 0; di < DOMAINS.length; di++) {
+      const w = gWeights[di][px] * ints[di] * SCALE;
+      if (w < 0.003) continue;
+      const [r, g, b] = domRGB[di];
+      R = R + r * w * (1 - R);
+      G = G + g * w * (1 - G);
+      B = B + b * w * (1 - B);
+    }
+    const idx = (py * TOTAL_W + px) * 4;
+    data[idx]   = R * 255;
+    data[idx+1] = G * 255;
+    data[idx+2] = B * 255;
+    // alpha stays 255
+  }
+}
+
+ctx.putImageData(img, 0, 0);
+
+// No CSS blur — domain blending is entirely from Gaussian spatial overlap
+
+// ── SVG overlay: axes, labels, milestones ─────────────────────────────────
+const svgEl = document.getElementById('overlay');
+const NS = 'http://www.w3.org/2000/svg';
+svgEl.setAttribute('width',  TOTAL_W);
+svgEl.setAttribute('height', TOTAL_H);
+svgEl.style.width  = TOTAL_W + 'px';
+svgEl.style.height = TOTAL_H + 'px';
+
+function svgEl_(tag, attrs, parent) {
+  const el = document.createElementNS(NS, tag);
+  for (const [k,v] of Object.entries(attrs)) el.setAttribute(k,v);
+  (parent || svgEl).appendChild(el);
+  return el;
+}
+
+// ── spectrum bar + domain abbreviations (bottom of data area) ────────────
+const defsEl = svgEl_('defs', {});
+const sg = svgEl_('linearGradient', {id:'sg', x1:'0%', x2:'100%', y1:'0%', y2:'0%'}, defsEl);
+DOMAINS.forEach((d, di) => {
+  svgEl_('stop', {
+    offset: ((di / (DOMAINS.length-1)) * 100).toFixed(1) + '%',
+    'stop-color': d.color, 'stop-opacity': '0.65'
+  }, sg);
+});
+
+const specY = TOP + DATA_H + 8;
+svgEl_('rect', {
+  x: LEFT, y: specY, width: DOMAINS.length * COL_W, height: 5,
+  fill: 'url(#sg)', rx: '2.5'
+});
+
+DOMAINS.forEach((d, di) => {
+  const cx = LEFT + di * COL_W + COL_W / 2;
+  const lbl = svgEl_('text', {
+    x: cx, y: specY + 17,
+    fill: d.color, 'fill-opacity': '0.38',
+    'font-size': '9', 'font-family': 'Space Grotesk, system-ui',
+    'text-anchor': 'middle'
+  });
+  lbl.textContent = d.name.split(' ')[0];
+});
+
+// year axis (left)
+for (let yr = 2015; yr <= 2026; yr++) {
+  const py = TOP + ((yr - Y_START) / Y_RANGE) * DATA_H;
+  // tick line across full width
+  svgEl_('line', {
+    x1: LEFT - 4, y1: py, x2: TOTAL_W - RIGHT, y2: py,
+    stroke: 'rgba(255,255,255,0.06)', 'stroke-width': '1'
+  });
+  // year label
+  const lbl = svgEl_('text', {
+    x: LEFT - 8, y: py + 4, fill: '#4a4c6a',
+    'font-size': '12', 'font-family': 'Space Grotesk, system-ui',
+    'text-anchor': 'end'
+  });
+  lbl.textContent = yr;
+}
+
+// "now" line
+const nowY = TOP + ((2026.42 - Y_START) / Y_RANGE) * DATA_H;
+svgEl_('line', {
+  x1: LEFT, y1: nowY, x2: TOTAL_W - RIGHT, y2: nowY,
+  stroke: 'rgba(255,255,255,0.35)', 'stroke-width': '1.5'
+});
+const nowLbl = svgEl_('text', {
+  x: TOTAL_W - RIGHT - 6, y: nowY - 4,
+  fill: 'rgba(255,255,255,0.5)', 'font-size': '11',
+  'font-family': 'Space Grotesk, system-ui', 'text-anchor': 'end'
+});
+nowLbl.textContent = 'now';
+
+// milestones: dot on left axis + dashed line
+MILESTONES.forEach((m, i) => {
+  const py = TOP + ((m.year - Y_START) / Y_RANGE) * DATA_H;
+  svgEl_('circle', {cx: LEFT - 2, cy: py, r: '3', fill: '#6b6d86'});
+  svgEl_('line', {
+    x1: LEFT - 2, y1: py, x2: TOTAL_W - RIGHT, y2: py,
+    stroke: 'rgba(255,255,255,0.08)', 'stroke-width': '1', 'stroke-dasharray': '3 5'
+  });
+  // label on alternating sides
+  const side = i % 2;
+  const lx   = side ? TOTAL_W - RIGHT - 4 : LEFT + 4;
+  const anchor = side ? 'end' : 'start';
+  const lbl = svgEl_('text', {
+    x: lx, y: py - 3, fill: '#5a5c78',
+    'font-size': '10.5', 'font-family': 'Space Grotesk, system-ui',
+    'text-anchor': anchor
+  });
+  lbl.textContent = m.label;
+});
+
+// ── skill dots ─────────────────────────────────────────────────────────────
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+  return h;
+}
+
+const dotData = [];
+SKILLS.forEach(s => {
+  const di = DOMAINS.findIndex(d => d.key === s.domain);
+  if (di < 0) return;
+  const d = DOMAINS[di];
+
+  const cx     = LEFT + di * COL_W + COL_W / 2;
+  const jitter = ((hashStr(s.name) % 56) - 28);
+  const dotX   = cx + jitter;
+  const activeEnd = Math.min(s.end, 2026.42);
+  const midYr  = (s.start + activeEnd) / 2;
+  const dotY   = TOP + ((midYr - Y_START) / Y_RANGE) * DATA_H;
+  const r      = 1.8 + (s.depth / 10) * 3.2;
+  const active = s.end >= 2026.4;
+
+  if (active) {
+    svgEl_('circle', {
+      cx: dotX, cy: dotY, r: r + 3.5,
+      fill: 'none', stroke: d.color, 'stroke-opacity': '0.18', 'stroke-width': '1'
+    });
+  }
+  const dot = svgEl_('circle', {
+    cx: dotX, cy: dotY, r,
+    fill: d.color, 'fill-opacity': active ? '0.88' : '0.42',
+    style: 'cursor:pointer; transition: r 0.1s'
+  });
+
+  dotData.push({el: dot, s, d, x: dotX, y: dotY, r});
+});
+
+// ── hover: snap to nearest dot within 14px, else show domain context ──────
+const tt   = document.getElementById('tt');
+const wrap = document.getElementById('wrap');
+
+let prevDot = null;
+wrap.addEventListener('mousemove', ev => {
+  const rect = base.getBoundingClientRect();
+  const mx = ev.clientX - rect.left;
+  const my = ev.clientY - rect.top;
+
+  // find closest dot
+  let best = null, bestD = Infinity;
+  for (const dot of dotData) {
+    const d = Math.hypot(mx - dot.x, my - dot.y);
+    if (d < bestD) { bestD = d; best = dot; }
+  }
+
+  if (prevDot) { prevDot.el.setAttribute('r', prevDot.r); prevDot = null; }
+
+  if (best && bestD < 16) {
+    // show exact skill
+    best.el.setAttribute('r', best.r + 2);
+    prevDot = best;
+    const dur = best.s.end >= 2026.4
+      ? `${Math.floor(best.s.start)} → now`
+      : `${Math.floor(best.s.start)} → ${Math.floor(best.s.end)}`;
+    tt.style.opacity = '1';
+    tt.style.left    = (ev.clientX + 14) + 'px';
+    tt.style.top     = (ev.clientY - 16) + 'px';
+    tt.innerHTML = `<div class="tt-name" style="color:${best.d.color}">${best.s.name}</div>
+      <div class="tt-meta">${dur} &nbsp;·&nbsp; depth ${best.s.depth}/10</div>
+      <div class="tt-meta" style="font-size:11px;color:#5a5c78;margin-top:2px">${best.d.name}</div>`;
+  } else {
+    // fallback: show domain context
+    const di = Math.floor((mx - LEFT) / COL_W);
+    if (di < 0 || di >= DOMAINS.length || my < TOP || my > TOP + DATA_H) {
+      tt.style.opacity = '0'; return;
+    }
+    const d  = DOMAINS[di];
+    const yr = Y_START + ((my - TOP) / DATA_H) * Y_RANGE;
+    const active = SKILLS
+      .filter(s => s.domain === d.key && yr >= s.start - 0.3 && yr <= s.end + 0.4)
+      .sort((a,b) => b.depth - a.depth).slice(0,5).map(s => s.name).join(', ');
+    tt.style.opacity = '1';
+    tt.style.left    = (ev.clientX + 14) + 'px';
+    tt.style.top     = (ev.clientY - 16) + 'px';
+    tt.innerHTML = `<div class="tt-name" style="color:${d.color}">${d.name}</div>
+      <div class="tt-meta">${Math.floor(yr)}</div>
+      <div class="tt-meta" style="font-size:11px;color:#5a5c78;margin-top:2px">${active}</div>`;
+  }
+});
+wrap.addEventListener('mouseleave', () => {
+  tt.style.opacity = '0';
+  if (prevDot) { prevDot.el.setAttribute('r', prevDot.r); prevDot = null; }
+});
+
+// ── size the wrapper ───────────────────────────────────────────────────────
+document.getElementById('wrap').style.width = TOTAL_W + 'px';
+
+// ── populate legend ────────────────────────────────────────────────────────
+const legendEl = document.getElementById('legend');
+legendEl.innerHTML = DOMAINS.map(d =>
+  `<div style="display:flex;align-items:center;gap:7px">
+     <span style="width:8px;height:8px;border-radius:50%;background:${d.color};flex-shrink:0;opacity:0.75;display:inline-block"></span>
+     <span style="color:${d.color};opacity:0.7">${d.name}</span>
+   </div>`
+).join('');
+</script>
+</body>
+</html>

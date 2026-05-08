@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>a decade in code · 3D helix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #06070f;
+    color: #e8e8f0;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    overflow: hidden;
+  }
+  canvas { display: block; }
+
+  #ui {
+    position: fixed; top: 0; left: 0; width: 100%;
+    pointer-events: none;
+    z-index: 10;
+  }
+  #ui .header { padding: 32px 40px; }
+  #ui a.back {
+    pointer-events: auto;
+    display: inline-block;
+    color: #8a8ca8;
+    text-decoration: none;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    margin-bottom: 18px;
+    transition: color 0.2s;
+  }
+  #ui a.back:hover { color: #e8e8f0; }
+  #ui h1 {
+    font-size: clamp(36px, 5vw, 64px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    background: linear-gradient(135deg, #FEE440 0%, #F15BB5 35%, #9B5DE5 70%, #00BBF9 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  #ui p.sub {
+    color: #6b6d86;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+  }
+
+  #legend {
+    position: fixed;
+    bottom: 28px; left: 40px;
+    background: rgba(10, 12, 22, 0.55);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 18px 22px;
+    z-index: 10;
+    pointer-events: auto;
+    max-width: 280px;
+  }
+  #legend h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: #6b6d86;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  #legend .dom {
+    display: flex; align-items: center;
+    font-size: 12.5px;
+    color: #b8bad0;
+    margin: 5px 0;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  #legend .swatch {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-right: 10px;
+    box-shadow: 0 0 8px currentColor;
+  }
+
+  #info {
+    position: fixed;
+    bottom: 28px; right: 40px;
+    background: rgba(10, 12, 22, 0.55);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 14px;
+    padding: 16px 20px;
+    z-index: 10;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #6b6d86;
+    letter-spacing: 0.05em;
+    line-height: 1.7;
+  }
+  #info b { color: #e8e8f0; font-weight: 500; }
+
+  #tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: rgba(10, 12, 22, 0.92);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 14px 18px;
+    z-index: 20;
+    transform: translate(14px, 14px);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    min-width: 200px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  #tooltip.show { opacity: 1; }
+  #tooltip .name {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    letter-spacing: -0.01em;
+  }
+  #tooltip .meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #8a8ca8;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  #tooltip .row {
+    display: flex; justify-content: space-between;
+    margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: #b8bad0;
+  }
+  #tooltip .row span:first-child { color: #6b6d86; }
+  #tooltip .depth-bar {
+    margin-top: 10px;
+    height: 3px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #tooltip .depth-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+  }
+
+  .yearLabel {
+    position: absolute;
+    color: #4a4c66;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    text-shadow: 0 0 8px #06070f;
+  }
+  .milestoneLabel {
+    position: absolute;
+    color: #FFD700;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    text-shadow: 0 0 12px rgba(255,215,0,0.6), 0 0 4px #06070f;
+    white-space: nowrap;
+  }
+
+  #labelLayer {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 5;
+  }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <div class="header">
+    <a class="back" href="index.html">← overview</a>
+    <h1>a decade in code · 3D</h1>
+    <p class="sub">drag to rotate · scroll to zoom · hover to inspect</p>
+  </div>
+</div>
+
+<div id="legend">
+  <h3>domains</h3>
+  <div class="dom"><span class="swatch" style="background:#9B5DE5;color:#9B5DE5"></span>foundations</div>
+  <div class="dom"><span class="swatch" style="background:#F15BB5;color:#F15BB5"></span>creative</div>
+  <div class="dom"><span class="swatch" style="background:#00BBF9;color:#00BBF9"></span>web</div>
+  <div class="dom"><span class="swatch" style="background:#00F5D4;color:#00F5D4"></span>linux</div>
+  <div class="dom"><span class="swatch" style="background:#FEE440;color:#FEE440"></span>aiml</div>
+  <div class="dom"><span class="swatch" style="background:#FF6B6B;color:#FF6B6B"></span>genai</div>
+  <div class="dom"><span class="swatch" style="background:#BD93F9;color:#BD93F9"></span>voice</div>
+  <div class="dom"><span class="swatch" style="background:#4CC9F0;color:#4CC9F0"></span>cuda</div>
+  <div class="dom"><span class="swatch" style="background:#F77F00;color:#F77F00"></span>backend</div>
+  <div class="dom"><span class="swatch" style="background:#06D6A0;color:#06D6A0"></span>agents</div>
+  <div class="dom"><span class="swatch" style="background:#C084FC;color:#C084FC"></span>native</div>
+</div>
+
+<div id="info">
+  <div><b>2015</b> ↓ bottom</div>
+  <div><b>2026</b> ↑ top</div>
+  <div>· · ·</div>
+  <div>51 skills · 11 domains</div>
+</div>
+
+<div id="tooltip">
+  <div class="name"></div>
+  <div class="meta"></div>
+  <div class="row"><span>active</span><span class="years"></span></div>
+  <div class="row"><span>depth</span><span class="depth"></span></div>
+  <div class="depth-bar"><div class="depth-fill"></div></div>
+</div>
+
+<div id="labelLayer"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.140.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const DOMAIN_COLORS = {
+  foundations:0x9B5DE5, creative:0xF15BB5, web:0x00BBF9, linux:0x00F5D4,
+  aiml:0xFEE440, genai:0xFF6B6B, voice:0xBD93F9, cuda:0x4CC9F0,
+  backend:0xF77F00, agents:0x06D6A0, native:0xC084FC
+};
+const DOMAIN_CSS = {
+  foundations:'#9B5DE5', creative:'#F15BB5', web:'#00BBF9', linux:'#00F5D4',
+  aiml:'#FEE440', genai:'#FF6B6B', voice:'#BD93F9', cuda:'#4CC9F0',
+  backend:'#F77F00', agents:'#06D6A0', native:'#C084FC'
+};
+const DOMAIN_OFFSET = {
+  foundations:0, creative:0.57, web:1.14, linux:1.71,
+  aiml:2.28, genai:2.85, voice:3.42, cuda:3.99,
+  backend:4.56, agents:5.13, native:5.70
+};
+
+const SKILLS = [
+  {name:'C++',domain:'foundations',start:2015,end:2026.4,depth:8},
+  {name:'Python',domain:'foundations',start:2020,end:2026.4,depth:10},
+  {name:'Java',domain:'foundations',start:2017,end:2021,depth:6},
+  {name:'Algorithms',domain:'foundations',start:2017,end:2026.4,depth:8},
+  {name:'Node graphs',domain:'foundations',start:2016,end:2022,depth:6},
+  {name:'CNN / early ML',domain:'foundations',start:2017,end:2020,depth:4},
+  {name:'Competitive prog',domain:'foundations',start:2019,end:2022,depth:7},
+  {name:'Photoshop',domain:'creative',start:2017,end:2022,depth:7},
+  {name:'After Effects',domain:'creative',start:2018,end:2022.5,depth:7},
+  {name:'Blender & 3D',domain:'creative',start:2019,end:2022.5,depth:8},
+  {name:'Cinema 4D',domain:'creative',start:2019,end:2022,depth:5},
+  {name:'Drone + DaVinci',domain:'creative',start:2023,end:2024.5,depth:6},
+  {name:'HTML/CSS',domain:'web',start:2017,end:2026.4,depth:7},
+  {name:'JavaScript',domain:'web',start:2017,end:2026.4,depth:8},
+  {name:'React',domain:'web',start:2022,end:2026.4,depth:7},
+  {name:'TypeScript',domain:'web',start:2024,end:2026.4,depth:7},
+  {name:'Kali/WiFi',domain:'linux',start:2019,end:2021,depth:6},
+  {name:'Arch Linux',domain:'linux',start:2022,end:2026.4,depth:9},
+  {name:'Bash',domain:'linux',start:2018,end:2026.4,depth:8},
+  {name:'Docker',domain:'linux',start:2022,end:2026.4,depth:9},
+  {name:'K8s/ArgoCD',domain:'linux',start:2025,end:2026.4,depth:7},
+  {name:'PyTorch',domain:'aiml',start:2021,end:2026.4,depth:10},
+  {name:'TensorFlow',domain:'aiml',start:2021,end:2023,depth:7},
+  {name:'NumPy/Pandas',domain:'aiml',start:2021,end:2026.4,depth:9},
+  {name:'YOLO',domain:'aiml',start:2022,end:2026.4,depth:7},
+  {name:'AR+diffusion',domain:'aiml',start:2025.85,end:2026.4,depth:8},
+  {name:'Stable Diffusion ★593',domain:'genai',start:2022.6,end:2025,depth:10},
+  {name:'Diffusion models',domain:'genai',start:2022,end:2026.4,depth:9},
+  {name:'LoRA/Dreambooth',domain:'genai',start:2022.8,end:2026.4,depth:9},
+  {name:'FLUX.1',domain:'genai',start:2024,end:2025,depth:8},
+  {name:'DPO',domain:'genai',start:2024,end:2026.4,depth:7},
+  {name:'Tacotron2/TTS',domain:'voice',start:2022,end:2023.5,depth:8},
+  {name:'Whisper',domain:'voice',start:2024,end:2026.4,depth:7},
+  {name:'CUDA',domain:'cuda',start:2022,end:2026.4,depth:8},
+  {name:'FlashAttention',domain:'cuda',start:2022,end:2026.4,depth:9},
+  {name:'Quantization',domain:'cuda',start:2022,end:2026.4,depth:8},
+  {name:'vLLM',domain:'cuda',start:2025,end:2026.4,depth:8},
+  {name:'TensorRT',domain:'cuda',start:2023,end:2026.4,depth:7},
+  {name:'FastAPI',domain:'backend',start:2022,end:2026.4,depth:10},
+  {name:'AWS/GCP',domain:'backend',start:2022,end:2026.4,depth:8},
+  {name:'Redis',domain:'backend',start:2022,end:2026.4,depth:8},
+  {name:'Elasticsearch',domain:'backend',start:2024,end:2026.4,depth:8},
+  {name:'Langfuse',domain:'backend',start:2025,end:2026.4,depth:8},
+  {name:'LangChain',domain:'agents',start:2024,end:2026.4,depth:9},
+  {name:'LangGraph',domain:'agents',start:2025,end:2026.4,depth:10},
+  {name:'DSPy',domain:'agents',start:2025,end:2026.4,depth:8},
+  {name:'MCP/FastMCP',domain:'agents',start:2025.5,end:2026.4,depth:9},
+  {name:'GraphRAG',domain:'agents',start:2026,end:2026.4,depth:8},
+  {name:'hermes-agent',domain:'agents',start:2025.6,end:2026.4,depth:8},
+  {name:'Paperclip',domain:'agents',start:2026.2,end:2026.4,depth:8},
+  {name:'Swift',domain:'native',start:2023,end:2026.4,depth:6},
+  {name:'Rust',domain:'native',start:2026,end:2026.4,depth:4},
+];
+
+const MILESTONES = [
+  {year:2017.75, label:'First CNN'},
+  {year:2022.75, label:'SD ★593'},
+  {year:2025.9,  label:'Rohlik'},
+  {year:2026.25, label:'NeurIPS 2026'},
+];
+
+// ============================================================
+// HELPERS
+// ============================================================
+function yearToY(year) { return -8 + (year - 2015) / (2026.4 - 2015) * 16; }
+function skillPos(skill) {
+  const y = yearToY(skill.start);
+  const angle = DOMAIN_OFFSET[skill.domain] + y * 0.8;
+  return new THREE.Vector3(Math.cos(angle) * 3.5, y, Math.sin(angle) * 3.5);
+}
+
+// ============================================================
+// SCENE
+// ============================================================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x06070f);
+scene.fog = new THREE.FogExp2(0x06070f, 0.018);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 18);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+// OrbitControls — examples/js path attaches to THREE global
+const Controls = THREE.OrbitControls;
+const controls = new Controls(camera, renderer.domElement);
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.4;
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.minDistance = 6;
+controls.maxDistance = 40;
+
+// ============================================================
+// LIGHTING
+// ============================================================
+scene.add(new THREE.AmbientLight(0x111122, 1.5));
+const pl1 = new THREE.PointLight(0xffffff, 60, 40); pl1.position.set(5,10,5); scene.add(pl1);
+const pl2 = new THREE.PointLight(0x4466ff, 30, 30); pl2.position.set(-5,-5,-5); scene.add(pl2);
+const pl3 = new THREE.PointLight(0xff6b6b, 18, 25); pl3.position.set(8,-2,-8); scene.add(pl3);
+
+// ============================================================
+// STARFIELD
+// ============================================================
+(function makeStars(){
+  const count = 1400;
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const r = 60 + Math.random() * 80;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2*Math.random() - 1);
+    positions[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+    positions[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+    positions[i*3+2] = r * Math.cos(phi);
+    const tone = 0.6 + Math.random() * 0.4;
+    colors[i*3] = tone; colors[i*3+1] = tone; colors[i*3+2] = tone * (0.85 + Math.random()*0.2);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const m = new THREE.PointsMaterial({ size: 0.18, vertexColors: true, transparent: true, opacity: 0.85, sizeAttenuation: true, depthWrite: false });
+  scene.add(new THREE.Points(g, m));
+})();
+
+// ============================================================
+// HELIX TUBE
+// ============================================================
+const helixPoints = [];
+for (let yr = 2015; yr <= 2026.4; yr += 0.05) {
+  const y = yearToY(yr);
+  const a = y * 0.8;
+  helixPoints.push(new THREE.Vector3(Math.cos(a)*3.5, y, Math.sin(a)*3.5));
+}
+const curve = new THREE.CatmullRomCurve3(helixPoints);
+const tubeGeo = new THREE.TubeGeometry(curve, 500, 0.04, 8, false);
+const tubeMat = new THREE.MeshBasicMaterial({color:0x2a2a4a, transparent:true, opacity:0.5});
+scene.add(new THREE.Mesh(tubeGeo, tubeMat));
+
+// Glowing inner spine
+const spineMat = new THREE.MeshBasicMaterial({color:0x6c7adb, transparent:true, opacity:0.18});
+const spineGeo = new THREE.TubeGeometry(curve, 500, 0.12, 8, false);
+scene.add(new THREE.Mesh(spineGeo, spineMat));
+
+// Vertical center axis (subtle)
+(function axis(){
+  const mat = new THREE.LineBasicMaterial({ color: 0x1a1c2e, transparent: true, opacity: 0.45 });
+  const pts = [ new THREE.Vector3(0, -9, 0), new THREE.Vector3(0, 9, 0) ];
+  const g = new THREE.BufferGeometry().setFromPoints(pts);
+  scene.add(new THREE.Line(g, mat));
+})();
+
+// ============================================================
+// YEAR RINGS + LABELS
+// ============================================================
+const labelLayer = document.getElementById('labelLayer');
+const yearLabels = []; // { el, worldPos }
+
+for (let yr = 2015; yr <= 2026; yr++) {
+  const y = yearToY(yr);
+  const ringGeo = new THREE.TorusGeometry(3.5, 0.02, 8, 64);
+  const ringMat = new THREE.MeshBasicMaterial({color:0x333355, transparent:true, opacity:0.3});
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = Math.PI/2;
+  ring.position.y = y;
+  scene.add(ring);
+
+  const el = document.createElement('div');
+  el.className = 'yearLabel';
+  el.textContent = yr;
+  labelLayer.appendChild(el);
+  yearLabels.push({ el, worldPos: new THREE.Vector3(3.9, y, 0) });
+}
+
+// ============================================================
+// SKILL SPHERES
+// ============================================================
+const skillMeshes = [];
+const ACTIVE_END = 2026.4;
+
+SKILLS.forEach(skill => {
+  const pos = skillPos(skill);
+  const radius = 0.12 + skill.depth * 0.065;
+  const color = DOMAIN_COLORS[skill.domain];
+
+  const geo = new THREE.SphereGeometry(radius, 32, 32);
+  const mat = new THREE.MeshStandardMaterial({
+    color: color,
+    metalness: 0.2,
+    roughness: 0.3,
+    emissive: color,
+    emissiveIntensity: 0.25
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(pos);
+  mesh.userData = { skill, baseEmissive: 0.25, radius };
+  scene.add(mesh);
+  skillMeshes.push(mesh);
+
+  // Active skills: wireframe halo
+  if (skill.end >= ACTIVE_END) {
+    const haloGeo = new THREE.SphereGeometry(radius * 1.4, 16, 16);
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: color, wireframe: true, transparent: true, opacity: 0.2
+    });
+    const halo = new THREE.Mesh(haloGeo, haloMat);
+    halo.position.copy(pos);
+    mesh.userData.halo = halo;
+    scene.add(halo);
+
+    // Outer soft glow shell
+    const glowGeo = new THREE.SphereGeometry(radius * 1.9, 16, 16);
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: color, transparent: true, opacity: 0.06,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    });
+    const glow = new THREE.Mesh(glowGeo, glowMat);
+    glow.position.copy(pos);
+    scene.add(glow);
+  }
+
+  // Thin radial connector from helix axis to sphere (subtle)
+  const onHelix = new THREE.Vector3(
+    Math.cos(DOMAIN_OFFSET[skill.domain] + pos.y * 0.8) * 3.5,
+    pos.y,
+    Math.sin(DOMAIN_OFFSET[skill.domain] + pos.y * 0.8) * 3.5
+  );
+  // (sphere already sits on helix — skip connector; helix tube serves the role)
+});
+
+// ============================================================
+// MILESTONE MARKERS
+// ============================================================
+const milestoneLabels = [];
+MILESTONES.forEach(m => {
+  const y = yearToY(m.year);
+  const ang = y * 0.8 + Math.PI; // outside the helix opposite side
+  const pos = new THREE.Vector3(Math.cos(ang) * 5, y, Math.sin(ang) * 5);
+
+  const geo = new THREE.OctahedronGeometry(0.25, 0);
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xFFD700,
+    emissive: 0xFFD700,
+    emissiveIntensity: 0.8,
+    metalness: 0.6,
+    roughness: 0.2
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(pos);
+  mesh.userData.spin = true;
+  scene.add(mesh);
+
+  // Glow halo
+  const glowGeo = new THREE.SphereGeometry(0.45, 16, 16);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: 0xFFD700, transparent: true, opacity: 0.15,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  const glow = new THREE.Mesh(glowGeo, glowMat);
+  glow.position.copy(pos);
+  scene.add(glow);
+  mesh.userData.glow = glow;
+
+  // Label
+  const el = document.createElement('div');
+  el.className = 'milestoneLabel';
+  el.textContent = m.label;
+  labelLayer.appendChild(el);
+  milestoneLabels.push({ el, mesh, worldPos: pos });
+});
+
+// ============================================================
+// HOVER / RAYCASTING
+// ============================================================
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2(-10, -10);
+let hovered = null;
+
+const tooltip = document.getElementById('tooltip');
+const tName = tooltip.querySelector('.name');
+const tMeta = tooltip.querySelector('.meta');
+const tYears = tooltip.querySelector('.years');
+const tDepth = tooltip.querySelector('.depth');
+const tFill = tooltip.querySelector('.depth-fill');
+
+function onPointerMove(e) {
+  pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  tooltip.style.left = e.clientX + 'px';
+  tooltip.style.top = e.clientY + 'px';
+}
+window.addEventListener('mousemove', onPointerMove);
+window.addEventListener('pointerleave', () => { pointer.x = -10; pointer.y = -10; });
+
+function updateHover() {
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(skillMeshes, false);
+
+  if (hits.length > 0) {
+    const m = hits[0].object;
+    if (hovered !== m) {
+      // restore prev
+      if (hovered) hovered.material.emissiveIntensity = hovered.userData.baseEmissive;
+      hovered = m;
+      m.material.emissiveIntensity = 0.85;
+      const skill = m.userData.skill;
+      const cssColor = DOMAIN_CSS[skill.domain];
+      tName.textContent = skill.name;
+      tName.style.color = cssColor;
+      tMeta.textContent = skill.domain;
+      const endStr = skill.end >= ACTIVE_END ? 'now' : String(skill.end).replace(/\.0$/, '');
+      tYears.textContent = `${skill.start} → ${endStr}`;
+      tDepth.textContent = `${skill.depth}/10`;
+      tFill.style.width = (skill.depth * 10) + '%';
+      tFill.style.background = cssColor;
+      tFill.style.boxShadow = `0 0 8px ${cssColor}`;
+      tooltip.classList.add('show');
+    }
+  } else if (hovered) {
+    hovered.material.emissiveIntensity = hovered.userData.baseEmissive;
+    hovered = null;
+    tooltip.classList.remove('show');
+  }
+}
+
+// ============================================================
+// LABEL PROJECTION (year + milestone)
+// ============================================================
+const _v = new THREE.Vector3();
+function projectLabels() {
+  const w = window.innerWidth, h = window.innerHeight;
+  yearLabels.forEach(({ el, worldPos }) => {
+    _v.copy(worldPos).project(camera);
+    if (_v.z > 1) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    el.style.left = ((_v.x + 1) / 2 * w) + 'px';
+    el.style.top  = ((-_v.y + 1) / 2 * h) + 'px';
+    const dist = camera.position.distanceTo(worldPos);
+    el.style.opacity = Math.max(0, Math.min(1, (35 - dist) / 25));
+  });
+  milestoneLabels.forEach(({ el, worldPos }) => {
+    _v.copy(worldPos).project(camera);
+    if (_v.z > 1) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    el.style.left = ((_v.x + 1) / 2 * w) + 'px';
+    el.style.top  = ((-_v.y + 1) / 2 * h - 24) + 'px';
+  });
+}
+
+// ============================================================
+// RESIZE
+// ============================================================
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ============================================================
+// ANIMATE
+// ============================================================
+const clock = new THREE.Clock();
+function animate() {
+  const dt = clock.getDelta();
+  const t = clock.elapsedTime;
+
+  controls.update();
+
+  // Pulse active skills' halos
+  skillMeshes.forEach(m => {
+    if (m.userData.halo) {
+      const s = 1 + Math.sin(t * 1.2 + m.position.y) * 0.06;
+      m.userData.halo.scale.setScalar(s);
+      m.userData.halo.rotation.y += dt * 0.3;
+    }
+  });
+
+  // Spin milestones
+  milestoneLabels.forEach(({ mesh }) => {
+    mesh.rotation.y += dt * 0.8;
+    mesh.rotation.x += dt * 0.4;
+    if (mesh.userData.glow) {
+      const s = 1 + Math.sin(t * 1.6 + mesh.position.y) * 0.12;
+      mesh.userData.glow.scale.setScalar(s);
+    }
+  });
+
+  updateHover();
+  projectLabels();
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+</script>
+</body>
+</html>

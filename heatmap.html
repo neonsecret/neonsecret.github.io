@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>skill heatmap · neonsecret</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;min-height:100vh}
+body{
+  background:#06070f;
+  background-image:radial-gradient(ellipse 180% 70% at 50% -10%, #1c1040 0%, #06070f 55%);
+  color:#d4d6f0;
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  display:flex;flex-direction:column;align-items:center;
+  padding:60px 32px 100px;
+}
+
+/* hero */
+.hero{text-align:center;max-width:760px;margin-bottom:48px}
+.eyebrow{
+  font-size:11px;letter-spacing:0.16em;text-transform:uppercase;
+  color:#5a5c78;margin-bottom:16px;font-weight:400;
+}
+h1{
+  font-size:clamp(36px,5vw,56px);font-weight:700;letter-spacing:-0.04em;line-height:1;
+  background:linear-gradient(120deg,#9B5DE5 0%,#F15BB5 30%,#FEE440 60%,#06D6A0 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:18px;
+}
+.hero-sub{font-size:15px;color:#6b6d86;line-height:1.65;font-weight:300;max-width:560px;margin:0 auto}
+
+.back{
+  position:absolute;top:32px;left:32px;
+  font-size:12px;letter-spacing:0.1em;text-transform:uppercase;
+  color:#5a5c78;text-decoration:none;
+  border:1px solid rgba(255,255,255,0.08);border-radius:99px;
+  padding:8px 16px;transition:color 0.15s,border-color 0.15s;
+}
+.back:hover{color:#d4d6f0;border-color:rgba(255,255,255,0.2)}
+
+/* heatmap container */
+.wrap{
+  width:100%;max-width:1180px;
+  border:1px solid rgba(255,255,255,0.06);border-radius:16px;
+  background:linear-gradient(160deg,rgba(255,255,255,0.02),rgba(255,255,255,0));
+  padding:36px 32px;
+  overflow-x:auto;
+}
+#heatmap{display:block;margin:0 auto}
+#heatmap text{font-family:'Space Grotesk',sans-serif;fill:#6b6d86}
+.year-label{font-size:11px;letter-spacing:0.08em;text-transform:uppercase;fill:#6b6d86}
+.year-now{fill:#d4d6f0;font-weight:600}
+.milestone{font-size:10px;letter-spacing:0.06em;fill:#9b9db8;font-weight:500}
+.milestone-tick{stroke:rgba(255,255,255,0.15);stroke-width:1}
+.skill-label{font-size:12px;fill:#9b9db8;font-weight:400}
+.domain-label{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;font-weight:600}
+.now-bg{fill:rgba(255,255,255,0.04)}
+.cell{transition:stroke 0.1s}
+.cell:hover{stroke:rgba(255,255,255,0.5);stroke-width:1.2}
+
+/* tooltip */
+.tooltip{
+  position:fixed;pointer-events:none;
+  background:rgba(12,13,28,0.95);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:8px;
+  padding:10px 14px;
+  font-size:12px;line-height:1.55;
+  color:#d4d6f0;
+  backdrop-filter:blur(8px);
+  opacity:0;transition:opacity 0.12s;
+  z-index:100;
+  box-shadow:0 10px 40px rgba(0,0,0,0.5);
+}
+.tooltip strong{color:#fff;font-weight:600}
+.tooltip .tt-meta{color:#6b6d86;font-size:11px;margin-top:4px}
+.tooltip .tt-bar{
+  margin-top:6px;height:3px;border-radius:99px;
+  background:rgba(255,255,255,0.08);overflow:hidden;
+}
+.tooltip .tt-bar div{height:100%;border-radius:99px}
+
+/* legend */
+.legend{
+  display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:center;
+  margin-top:28px;font-size:11px;color:#6b6d86;
+}
+.legend-item{display:inline-flex;align-items:center;gap:6px;letter-spacing:0.04em}
+.legend-swatch{width:10px;height:10px;border-radius:2px}
+
+.footer{margin-top:48px;font-size:12px;color:#3e405a;text-align:center;line-height:1.8}
+.footer a{color:#5a5c78;text-decoration:none;border-bottom:1px dotted #3e405a}
+.footer a:hover{color:#9b9db8}
+</style>
+</head>
+<body>
+
+<a class="back" href="index.html">← back</a>
+
+<div class="hero">
+  <div class="eyebrow">view 03 · skill heatmap</div>
+  <h1>skill × year</h1>
+  <p class="hero-sub">
+    42 skills across 11 domains, charted year by year. Color encodes domain;
+    opacity encodes intensity in that calendar year. Ramp-in and ramp-out
+    soften skill boundaries.
+  </p>
+</div>
+
+<div class="wrap">
+  <svg id="heatmap"></svg>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<div class="footer">
+  <a href="index.html">overview</a> &nbsp;·&nbsp;
+  <a href="streamgraph.html">streamgraph</a> &nbsp;·&nbsp;
+  <a href="timeline.html">timeline</a>
+</div>
+
+<div class="tooltip" id="tt"></div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const DOMAIN_COLORS = {
+  foundations:'#9B5DE5', creative:'#F15BB5', web:'#00BBF9',
+  linux:'#00F5D4', aiml:'#FEE440', genai:'#FF6B6B',
+  voice:'#BD93F9', cuda:'#4CC9F0', backend:'#F77F00',
+  agents:'#06D6A0', native:'#C084FC',
+};
+const DOMAIN_LABEL = {
+  foundations:'Foundations', creative:'Creative tools', web:'Web',
+  linux:'Linux & infra', aiml:'AI / ML', genai:'GenAI',
+  voice:'Voice', cuda:'GPU & inference', backend:'Backend',
+  agents:'Agents & RAG', native:'Native',
+};
+
+const SKILLS = [
+  ['C++','foundations',2015,2026.4,8],
+  ['Java','foundations',2017,2021,6],
+  ['Python','foundations',2020,2026.4,10],
+  ['Algorithms & DSA','foundations',2017,2026.4,8],
+  ['Node graph / visual prog','foundations',2016,2022,6],
+  ['CNN / early ML','foundations',2017,2020,4],
+  ['Competitive programming','foundations',2019,2022,7],
+  ['Photoshop / GIMP','creative',2017,2022,7],
+  ['After Effects / Video','creative',2018,2022.5,7],
+  ['Blender & 3D','creative',2019,2022.5,8],
+  ['Cinema 4D','creative',2019,2022,5],
+  ['Drone + DaVinci','creative',2023,2024.5,6],
+  ['HTML / CSS','web',2017,2026.4,7],
+  ['JavaScript','web',2017,2026.4,8],
+  ['React','web',2022,2026.4,7],
+  ['TypeScript','web',2024,2026.4,7],
+  ['Arch Linux','linux',2022,2026.4,9],
+  ['Bash scripting','linux',2018,2026.4,8],
+  ['Docker','linux',2022,2026.4,9],
+  ['Kubernetes/ArgoCD','linux',2025,2026.4,7],
+  ['PyTorch','aiml',2021,2026.4,10],
+  ['TensorFlow','aiml',2021,2023,7],
+  ['NumPy / Pandas','aiml',2021,2026.4,9],
+  ['YOLO / object det','aiml',2022,2026.4,7],
+  ['Hybrid AR+diffusion','aiml',2025.85,2026.4,8],
+  ['Stable Diffusion ★593','genai',2022.6,2025,10],
+  ['Diffusion models','genai',2022,2026.4,9],
+  ['LoRA / Dreambooth','genai',2022.8,2026.4,9],
+  ['FLUX.1','genai',2024,2025,8],
+  ['Tacotron 2 / TTS ★55','voice',2022,2023.5,8],
+  ['OpenAI Whisper','voice',2024,2026.4,7],
+  ['CUDA','cuda',2022,2026.4,8],
+  ['FlashAttention','cuda',2022,2026.4,9],
+  ['Quantization','cuda',2022,2026.4,8],
+  ['vLLM','cuda',2025,2026.4,8],
+  ['FastAPI','backend',2022,2026.4,10],
+  ['AWS / GCP','backend',2022,2026.4,8],
+  ['Redis','backend',2022,2026.4,8],
+  ['Elasticsearch','backend',2024,2026.4,8],
+  ['LangChain','agents',2024,2026.4,9],
+  ['LangGraph','agents',2025,2026.4,10],
+  ['DSPy','agents',2025,2026.4,8],
+  ['MCP / FastMCP','agents',2025.5,2026.4,9],
+  ['GraphRAG','agents',2026,2026.4,8],
+  ['Swift / macOS','native',2023,2026.4,6],
+  ['Rust','native',2026,2026.4,4],
+].map(([name,domain,start,end,depth])=>({name,domain,start,end,depth}));
+
+const MILESTONES = {
+  2017:'school', 2019:'Kali', 2022:'SD★', 2025:'Rohlik', 2026:'NeurIPS'
+};
+
+// layout
+const YEARS = d3.range(2015, 2027); // 2015..2026 inclusive = 12
+const NOW_YEAR = 2026;
+const CELL_W = 80, CELL_H = 24, GAP = 2, RX = 3;
+const LABEL_W = 220;
+const HEADER_H = 64;       // milestones + year labels
+const DOMAIN_H = 28;       // domain header row
+const PAD_L = 24, PAD_R = 24, PAD_T = 16, PAD_B = 16;
+
+// group skills by domain preserving order
+const domainOrder = [];
+const byDomain = {};
+SKILLS.forEach(s=>{
+  if(!byDomain[s.domain]){ byDomain[s.domain]=[]; domainOrder.push(s.domain); }
+  byDomain[s.domain].push(s);
+});
+
+// compute row layout: each domain gets a header row + skill rows
+const rows = []; // {type:'header'|'skill', domain, skill?}
+domainOrder.forEach(d=>{
+  rows.push({type:'header', domain:d});
+  byDomain[d].forEach(s=> rows.push({type:'skill', domain:d, skill:s}));
+});
+
+const yOf = i => {
+  let y = HEADER_H + PAD_T;
+  for(let k=0;k<i;k++){
+    y += rows[k].type==='header' ? DOMAIN_H : (CELL_H + GAP);
+  }
+  return y;
+};
+
+const totalW = PAD_L + LABEL_W + YEARS.length*(CELL_W+GAP) - GAP + PAD_R;
+const totalH = yOf(rows.length) + PAD_B;
+
+const svg = d3.select('#heatmap')
+  .attr('width', totalW).attr('height', totalH)
+  .attr('viewBox', `0 0 ${totalW} ${totalH}`);
+
+// X helpers
+const xOf = (yearIdx) => PAD_L + LABEL_W + yearIdx*(CELL_W+GAP);
+
+// "now" column highlight band
+const nowIdx = YEARS.indexOf(NOW_YEAR);
+svg.append('rect')
+  .attr('class','now-bg')
+  .attr('x', xOf(nowIdx) - GAP/2)
+  .attr('y', PAD_T + 28)
+  .attr('width', CELL_W + GAP)
+  .attr('height', totalH - PAD_T - PAD_B - 28)
+  .attr('rx', 4);
+
+// milestone labels + ticks
+YEARS.forEach((y,i)=>{
+  const cx = xOf(i) + CELL_W/2;
+  if(MILESTONES[y]){
+    svg.append('text')
+      .attr('class','milestone')
+      .attr('x', cx).attr('y', PAD_T + 12)
+      .attr('text-anchor','middle')
+      .text(MILESTONES[y]);
+    svg.append('line')
+      .attr('class','milestone-tick')
+      .attr('x1', cx).attr('x2', cx)
+      .attr('y1', PAD_T + 16).attr('y2', PAD_T + 24);
+  }
+});
+
+// year axis
+YEARS.forEach((y,i)=>{
+  const cx = xOf(i) + CELL_W/2;
+  const isNow = y===NOW_YEAR;
+  svg.append('text')
+    .attr('class', 'year-label' + (isNow?' year-now':''))
+    .attr('x', cx).attr('y', PAD_T + 44)
+    .attr('text-anchor','middle')
+    .text(isNow ? "'"+String(y).slice(2)+" · now" : "'"+String(y).slice(2));
+});
+
+// rows
+const tt = document.getElementById('tt');
+
+rows.forEach((row, i)=>{
+  const ry = yOf(i);
+  if(row.type === 'header'){
+    const color = DOMAIN_COLORS[row.domain];
+    // accent bar
+    svg.append('rect')
+      .attr('x', PAD_L).attr('y', ry + 8)
+      .attr('width', 3).attr('height', DOMAIN_H - 12)
+      .attr('rx', 1.5)
+      .attr('fill', color);
+    svg.append('text')
+      .attr('class','domain-label')
+      .attr('x', PAD_L + 12).attr('y', ry + DOMAIN_H - 8)
+      .attr('fill', color)
+      .text(DOMAIN_LABEL[row.domain] || row.domain);
+    // hairline across the row
+    svg.append('line')
+      .attr('x1', PAD_L + LABEL_W).attr('x2', totalW - PAD_R)
+      .attr('y1', ry + DOMAIN_H - 4).attr('y2', ry + DOMAIN_H - 4)
+      .attr('stroke','rgba(255,255,255,0.04)').attr('stroke-width',1);
+    return;
+  }
+  const s = row.skill;
+  const color = DOMAIN_COLORS[s.domain];
+
+  // skill label
+  svg.append('text')
+    .attr('class','skill-label')
+    .attr('x', PAD_L + LABEL_W - 12).attr('y', ry + CELL_H/2 + 4)
+    .attr('text-anchor','end')
+    .text(s.name);
+
+  // cells
+  const startFloor = Math.floor(s.start);
+  const endFloor   = Math.floor(s.end);
+  YEARS.forEach((Y, idx)=>{
+    let opacity = 0;
+    if(Y >= startFloor && Y <= endFloor){
+      if(Y === startFloor && s.start > Y){
+        // partial start year
+        opacity = (s.depth/10) * 0.6;
+      } else if(Y === endFloor && s.end < Y+1){
+        opacity = (s.depth/10) * 0.5;
+      } else {
+        opacity = s.depth/10;
+      }
+    }
+    const cx = xOf(idx);
+    const visible = opacity > 0;
+    svg.append('rect')
+      .attr('class','cell')
+      .attr('x', cx).attr('y', ry)
+      .attr('width', CELL_W).attr('height', CELL_H)
+      .attr('rx', RX)
+      .attr('fill', visible ? color : '#0e1020')
+      .attr('fill-opacity', visible ? opacity : 0.25)
+      .attr('stroke','transparent').attr('stroke-width', 1.2)
+      .on('mousemove', (ev)=>{
+        const intensity = visible ? opacity.toFixed(2) : '—';
+        const barW = visible ? Math.round(opacity*100) : 0;
+        tt.innerHTML = `<strong>${s.name}</strong>
+          <div class="tt-meta">${DOMAIN_LABEL[s.domain]} · ${Y}</div>
+          <div class="tt-meta">intensity ${intensity} · depth ${s.depth}/10</div>
+          <div class="tt-bar"><div style="width:${barW}%;background:${color}"></div></div>`;
+        tt.style.opacity = 1;
+        tt.style.left = (ev.clientX + 14) + 'px';
+        tt.style.top  = (ev.clientY + 14) + 'px';
+      })
+      .on('mouseleave', ()=>{ tt.style.opacity = 0; });
+  });
+});
+
+// legend
+const legendEl = document.getElementById('legend');
+domainOrder.forEach(d=>{
+  const item = document.createElement('div');
+  item.className='legend-item';
+  const sw = document.createElement('span');
+  sw.className='legend-swatch';
+  sw.style.background = DOMAIN_COLORS[d];
+  item.appendChild(sw);
+  const lbl = document.createElement('span');
+  lbl.textContent = DOMAIN_LABEL[d];
+  item.appendChild(lbl);
+  legendEl.appendChild(item);
+});
+</script>
+</body>
+</html>
